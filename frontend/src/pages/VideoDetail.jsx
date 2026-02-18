@@ -1,0 +1,153 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+    Box, Typography, Grid, Button, Skeleton, Chip, IconButton, Divider,
+} from '@mui/material';
+import { ArrowBack, Movie, Description } from '@mui/icons-material';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import client from '../api/client';
+import ClipCard from '../components/ClipCard';
+import FeedbackModal from '../components/FeedbackModal';
+
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
+const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
+
+export default function VideoDetail() {
+    const { videoId } = useParams();
+    const navigate = useNavigate();
+    const [video, setVideo] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [feedbackClip, setFeedbackClip] = useState(null);
+
+    const fetchVideo = async () => {
+        try {
+            const res = await client.get(`/api/videos/${videoId}`);
+            setVideo(res.data);
+        } catch {
+            toast.error('Failed to load video');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchVideo(); }, [videoId]);
+
+    const handleApprove = async (clipId) => {
+        try {
+            await client.patch(`/api/clips/${clipId}/approve`);
+            toast.success('Clip approved!');
+            fetchVideo();
+        } catch {
+            toast.error('Failed to approve');
+        }
+    };
+
+    const handleFeedback = async (clipId, feedback) => {
+        try {
+            await client.post(`/api/clips/${clipId}/feedback`, { user_feedback: feedback });
+            toast.success('New clip generated from feedback!');
+            fetchVideo();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Redo failed');
+        }
+    };
+
+    if (loading) {
+        return (
+            <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
+                <Skeleton variant="text" width={300} height={40} />
+                <Skeleton variant="rounded" height={200} sx={{ mt: 3, borderRadius: 4 }} />
+            </Box>
+        );
+    }
+
+    if (!video) {
+        return (
+            <Box sx={{ p: 4, textAlign: 'center', mt: 4 }}>
+                <Typography variant="h6" color="text.secondary">Video not found</Typography>
+                <Button onClick={() => navigate('/files')} sx={{ mt: 2 }}>Back to Files</Button>
+            </Box>
+        );
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+            <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
+                {/* Header */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                    <motion.div whileTap={{ scale: 0.9 }}>
+                        <IconButton onClick={() => navigate('/files')}
+                            sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: '#f5f7fa' } }}
+                        >
+                            <ArrowBack fontSize="small" />
+                        </IconButton>
+                    </motion.div>
+                    <Typography variant="h4" sx={{ flex: 1, fontSize: { xs: '1.5rem', md: '2rem' } }}>
+                        {video.title}
+                    </Typography>
+                    <Chip
+                        label={video.status}
+                        color={video.status === 'clipped' ? 'success' : video.status === 'failed' ? 'error' : 'warning'}
+                        sx={{ fontWeight: 600, textTransform: 'capitalize', px: 1, height: 32 }}
+                    />
+                </Box>
+
+                {/* Meta */}
+                <Box sx={{ display: 'flex', gap: 3, ml: { xs: 0, sm: 7 }, mb: 5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <Movie sx={{ fontSize: 18, color: 'primary.main' }} />
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>Video file</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <Description sx={{ fontSize: 18, color: 'secondary.main' }} />
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>Transcript</Typography>
+                    </Box>
+                </Box>
+
+                <Divider sx={{ mb: 4, opacity: 0.6 }} />
+
+                {/* Clips */}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                    <Typography variant="h5">
+                        Clips <Typography component="span" color="text.secondary" fontWeight={500}>({video.clips?.length || 0})</Typography>
+                    </Typography>
+                </Box>
+
+                {video.clips?.length ? (
+                    <motion.div variants={stagger} initial="hidden" animate="show">
+                        <Grid container spacing={3}>
+                            {video.clips.map((clip) => (
+                                <Grid key={clip.id} size={{ xs: 12, md: 6 }}>
+                                    <motion.div variants={fadeUp}>
+                                        <ClipCard
+                                            clip={clip}
+                                            onApprove={handleApprove}
+                                            onFeedback={(c) => setFeedbackClip(c)}
+                                        />
+                                    </motion.div>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    </motion.div>
+                ) : (
+                    <Box sx={{ textAlign: 'center', py: 8, bgcolor: '#fff', borderRadius: 4, border: '1px dashed', borderColor: 'divider' }}>
+                        <Typography color="text.secondary" sx={{ mb: 2 }}>
+                            No clips generated yet.
+                        </Typography>
+                        <Button variant="outlined" onClick={() => navigate('/files')}>
+                            Go to Analysis
+                        </Button>
+                    </Box>
+                )}
+            </Box>
+
+            <FeedbackModal
+                open={!!feedbackClip}
+                onClose={() => setFeedbackClip(null)}
+                clip={feedbackClip}
+                onSubmit={handleFeedback}
+            />
+        </motion.div>
+    );
+}
