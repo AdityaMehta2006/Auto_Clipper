@@ -1,12 +1,20 @@
-import { Card, CardContent, Box, Typography, Chip, Button, LinearProgress, Grid } from '@mui/material';
-import { AccessTime, Star, ThumbUp, Replay } from '@mui/icons-material';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { Card, CardContent, Box, Typography, Chip, Button, LinearProgress, Grid, CircularProgress } from '@mui/material';
+import { AccessTime, Star, ThumbUp, Replay, PlayArrow, AutoAwesome } from '@mui/icons-material';
+import { motion } from 'framer-motion';
+import { useState } from 'react';
 
-export default function ClipCard({ clip, onApprove, onFeedback }) {
+export default function ClipCard({ clip, onApprove, onFeedback, onGenerate }) {
+    const [generating, setGenerating] = useState(false);
     const videoUrl = clip.file_path
         ? `${import.meta.env.VITE_API_URL}/clips/${clip.file_path.split(/[/\\]/).pop()}`
         : '';
+    const isSuggestion = !clip.file_path;
+
+    const handleGenerateClick = async () => {
+        setGenerating(true);
+        await onGenerate(clip.id);
+        setGenerating(false);
+    };
 
     return (
         <motion.div
@@ -14,10 +22,20 @@ export default function ClipCard({ clip, onApprove, onFeedback }) {
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ y: -3 }}
         >
-            <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'divider', overflow: 'hidden', bgcolor: '#fff' }}>
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 3,
+                    borderColor: isSuggestion ? 'secondary.main' : 'divider',
+                    borderStyle: isSuggestion ? 'dashed' : 'solid',
+                    borderWidth: isSuggestion ? 2 : 1,
+                    overflow: 'hidden',
+                    bgcolor: '#fff'
+                }}
+            >
                 <Grid container>
-                    {/* Video Player Section */}
-                    <Grid item xs={12} md={7} sx={{ bgcolor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Video Player / Placeholder Section */}
+                    <Grid item xs={12} md={7} sx={{ bgcolor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 250 }}>
                         {videoUrl ? (
                             <video
                                 controls
@@ -25,7 +43,17 @@ export default function ClipCard({ clip, onApprove, onFeedback }) {
                                 style={{ width: '100%', maxHeight: '400px', display: 'block' }}
                             />
                         ) : (
-                            <Box sx={{ p: 4, color: '#fff' }}>Video not available</Box>
+                            <Box sx={{ p: 4, color: 'rgba(255,255,255,0.7)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                <AutoAwesome sx={{ fontSize: 40, color: 'secondary.main' }} />
+                                <Box>
+                                    <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 600 }}>
+                                        AI Suggestion
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                                        Click "Generate" to create this clip
+                                    </Typography>
+                                </Box>
+                            </Box>
                         )}
                     </Grid>
 
@@ -64,7 +92,10 @@ export default function ClipCard({ clip, onApprove, onFeedback }) {
                                         {clip.start_time} - {clip.end_time}
                                     </Typography>
                                 </Box>
-                                {clip.is_approved !== null && (
+                                {isSuggestion && (
+                                    <Chip label="Suggestion" size="small" variant="outlined" color="secondary" sx={{ height: 22, fontWeight: 600 }} />
+                                )}
+                                {!isSuggestion && clip.is_approved !== null && (
                                     <Chip
                                         label={clip.is_approved ? 'Approved' : 'Rejected'}
                                         color={clip.is_approved ? 'success' : 'default'}
@@ -88,41 +119,64 @@ export default function ClipCard({ clip, onApprove, onFeedback }) {
 
                             {/* Actions */}
                             <Box sx={{ display: 'flex', gap: 1.5, mt: 'auto' }}>
-                                {clip.is_approved !== true && (
+                                {isSuggestion ? (
                                     <Button
                                         variant="contained"
                                         fullWidth
                                         disableElevation
-                                        startIcon={<ThumbUp sx={{ fontSize: 18 }} />}
-                                        onClick={() => onApprove(clip.id)}
+                                        onClick={handleGenerateClick}
+                                        disabled={generating}
+                                        startIcon={generating ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
                                         sx={{
-                                            bgcolor: '#16a34a',
+                                            bgcolor: 'secondary.main',
                                             color: '#fff',
-                                            '&:hover': { bgcolor: '#15803d' },
+                                            '&:hover': { bgcolor: 'secondary.dark' },
                                             borderRadius: 1.5,
                                             textTransform: 'none',
                                             fontWeight: 600,
                                         }}
                                     >
-                                        Approve
+                                        {generating ? 'Generatihg...' : 'Generate Clip'}
                                     </Button>
+                                ) : (
+                                    <>
+                                        {clip.is_approved !== true && (
+                                            <Button
+                                                variant="contained"
+                                                fullWidth
+                                                disableElevation
+                                                startIcon={<ThumbUp sx={{ fontSize: 18 }} />}
+                                                onClick={() => onApprove(clip.id)}
+                                                sx={{
+                                                    bgcolor: '#16a34a',
+                                                    color: '#fff',
+                                                    '&:hover': { bgcolor: '#15803d' },
+                                                    borderRadius: 1.5,
+                                                    textTransform: 'none',
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                Approve
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="outlined"
+                                            fullWidth
+                                            startIcon={<Replay sx={{ fontSize: 18 }} />}
+                                            onClick={() => onFeedback(clip)}
+                                            sx={{
+                                                borderColor: 'divider',
+                                                color: 'text.primary',
+                                                '&:hover': { borderColor: 'text.primary', bgcolor: 'transparent' },
+                                                borderRadius: 1.5,
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            Redo
+                                        </Button>
+                                    </>
                                 )}
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    startIcon={<Replay sx={{ fontSize: 18 }} />}
-                                    onClick={() => onFeedback(clip)}
-                                    sx={{
-                                        borderColor: 'divider',
-                                        color: 'text.primary',
-                                        '&:hover': { borderColor: 'text.primary', bgcolor: 'transparent' },
-                                        borderRadius: 1.5,
-                                        textTransform: 'none',
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    Redo
-                                </Button>
                             </Box>
                         </CardContent>
                     </Grid>

@@ -8,8 +8,11 @@ Auto Clipper uses Google Gemini (1.5 Flash/Pro) to analyze long-form videos, ide
 
 - **Multimodal Analysis**: Uses Gemini to understand video content, pacing, and hooks.
 - **Viral Modes**: Choose between "Standard" analysis or "Viral" (Short-form/Aggressive) mode.
+- **Multi-Summary**: Generates **3 distinct clip suggestions** per video, allowing you to choose the best one.
+- **Organized Library**: Clips are automatically grouped by their source video folder for easy management.
 - **Google Drive Integration**: Browse and import videos directly from Drive.
 - **Interactive Clipper**: Review clips, watch them side-by-side with AI reasoning, and approve/reject.
+- **Auto-Cleanup**: Approving a clip automatically removes other suggestions to keep your library clean.
 - **Feedback Loop**: Request edits (e.g., "Make it shorter") and the AI will re-process the clip.
 
 ## Documentation

@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import {
     Box, Typography, Grid, Skeleton, ToggleButtonGroup, ToggleButton, Button,
 } from '@mui/material';
-import { MovieFilter, ArrowBack } from '@mui/icons-material';
+import { MovieFilter, ArrowBack, FolderOpen } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 import ClipCard from '../components/ClipCard';
 import FeedbackModal from '../components/FeedbackModal';
+import { useNavigate } from 'react-router-dom';
 
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -17,6 +18,7 @@ export default function Clips() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [feedbackClip, setFeedbackClip] = useState(null);
+    const navigate = useNavigate();
 
     const fetchClips = async () => {
         setLoading(true);
@@ -35,7 +37,7 @@ export default function Clips() {
     const handleApprove = async (clipId) => {
         try {
             await client.patch(`/api/clips/${clipId}/approve`);
-            toast.success('Clip approved!');
+            toast.success('Clip approved! Others removed.');
             fetchClips();
         } catch {
             toast.error('Failed to approve');
@@ -52,11 +54,29 @@ export default function Clips() {
         }
     };
 
+    const handleGenerate = async (clipId) => {
+        try {
+            await client.post(`/api/clips/${clipId}/generate`);
+            toast.success('Clip generated successfully!');
+            fetchClips();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Generation failed');
+        }
+    };
+
     const filtered = clips.filter((c) => {
         if (filter === 'approved') return c.is_approved === true;
         if (filter === 'pending') return c.is_approved === null;
         return true;
     });
+
+    // Group by video title
+    const grouped = filtered.reduce((acc, clip) => {
+        const title = clip.video_title || 'Unknown Video';
+        if (!acc[title]) acc[title] = [];
+        acc[title].push(clip);
+        return acc;
+    }, {});
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -73,7 +93,7 @@ export default function Clips() {
                                 Clip Library
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Review and approve your generated viral clips
+                                Organized by video folder
                             </Typography>
                         </Box>
                     </Box>
@@ -124,28 +144,40 @@ export default function Clips() {
                         <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
                             {clips.length === 0 ? 'No clips yet' : 'No matches found'}
                         </Typography>
-                        <Typography variant="body2" color="text.disabled">
-                            {clips.length === 0 ? 'Analyze a video to generate your first clip.' : 'Try adjusting your filters.'}
-                        </Typography>
-                        {clips.length === 0 && (
-                            <Button variant="outlined" sx={{ mt: 3 }} onClick={() => window.location.href = '/files'}>Browse Files</Button>
-                        )}
+                        <Button variant="outlined" sx={{ mt: 3 }} onClick={() => navigate('/files')}>Browse Files</Button>
                     </Box>
                 ) : (
                     <motion.div variants={stagger} initial="hidden" animate="show">
-                        <Grid container spacing={3}>
-                            {filtered.map((clip) => (
-                                <Grid item xs={12} md={6} key={clip.id}>
-                                    <motion.div variants={fadeUp}>
-                                        <ClipCard
-                                            clip={clip}
-                                            onApprove={handleApprove}
-                                            onFeedback={(c) => setFeedbackClip(c)}
-                                        />
-                                    </motion.div>
+                        {Object.entries(grouped).sort().map(([title, groupClips]) => (
+                            <Box key={title} sx={{ mb: 6 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                                    <Box sx={{ p: 1, bgcolor: 'primary.50', borderRadius: 1.5, color: 'primary.main' }}>
+                                        <FolderOpen fontSize="small" />
+                                    </Box>
+                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                        {title}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
+                                        {groupClips.length} clips
+                                    </Typography>
+                                </Box>
+
+                                <Grid container spacing={3}>
+                                    {groupClips.map((clip) => (
+                                        <Grid item xs={12} md={6} key={clip.id}>
+                                            <motion.div variants={fadeUp}>
+                                                <ClipCard
+                                                    clip={clip}
+                                                    onApprove={handleApprove}
+                                                    onFeedback={(c) => setFeedbackClip(c)}
+                                                    onGenerate={handleGenerate}
+                                                />
+                                            </motion.div>
+                                        </Grid>
+                                    ))}
                                 </Grid>
-                            ))}
-                        </Grid>
+                            </Box>
+                        ))}
                     </motion.div>
                 )}
             </Box>

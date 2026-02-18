@@ -40,7 +40,26 @@ export default function FileBrowser() {
         setAnalyzingId(videoId);
         try {
             await client.post(`/api/analyze/${videoId}?mode=${mode}`);
-            toast.success('Clip generated successfully!');
+            toast((t) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Analysis Complete!</Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>3 suggestions ready.</Typography>
+                    </Box>
+                    <Button
+                        size="small"
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                            navigate('/clips');
+                        }}
+                        sx={{ minWidth: 'auto', px: 2, py: 0.5, borderRadius: 2 }}
+                    >
+                        View
+                    </Button>
+                </Box>
+            ), { duration: 5000, icon: '🎉' });
             fetchVideos();
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Analysis failed');
