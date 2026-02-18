@@ -61,6 +61,7 @@ class ClipResponse(BaseModel):
     virality_score: Optional[float] = None
     suggested_title: Optional[str] = None
     file_path: Optional[str] = None
+    video_title: Optional[str] = None
     is_approved: Optional[bool] = None
     created_at: datetime
 

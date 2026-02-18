@@ -65,7 +65,8 @@ def approve_clip(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Mark a clip as approved."""
+    """Mark a clip as approved and remove other suggestions for the same video."""
+    # 1. Get the target clip
     clip = (
         db.query(Clip)
         .join(Video)
@@ -75,11 +76,86 @@ def approve_clip(
     if not clip:
         raise HTTPException(status_code=404, detail="Clip not found")
 
+    # 2. Approve it
     clip.is_approved = True
+    
+    # 3. Find and delete siblings
+    siblings = (
+        db.query(Clip)
+        .filter(Clip.video_id == clip.video_id, Clip.id != clip.id)
+        .all()
+    )
+    
+    deleted_count = 0
+    for sib in siblings:
+        # Delete physical file if exists
+        if sib.file_path:
+            try:
+                p = Path(sib.file_path)
+                if p.exists():
+                    p.unlink()
+            except Exception as e:
+                print(f"Error deleting sibling file {sib.file_path}: {e}")
+        
+        # Delete DB record
+        db.delete(sib)
+        deleted_count += 1
+
     db.commit()
     db.refresh(clip)
+    print(f"Approved clip {clip.id}, deleted {deleted_count} siblings.")
     return clip
 
+
+@router.post("/{clip_id}/generate", response_model=ClipResponse)
+def generate_clip(
+    clip_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate the actual video file for a suggested clip."""
+    import uuid
+    from services.clipper import clip_video
+
+    # 1. Get clip and video
+    clip = (
+        db.query(Clip)
+        .join(Video)
+        .filter(Clip.id == clip_id, Video.user_id == current_user.id)
+        .first()
+    )
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    # 2. Check if already generated
+    if clip.file_path and Path(clip.file_path).exists():
+        return clip
+
+    # 3. Get local video path
+    video_path = Path(clip.video.local_path)
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail="Source video file not found")
+
+    # 4. Generate clip with FFmpeg
+    try:
+        clip_name = f"clip_{uuid.uuid4().hex[:8]}"
+        clip_path = clip_video(
+            input_path=str(video_path),
+            start_time=clip.start_time,
+            end_time=clip.end_time,
+            output_name=clip_name,
+        )
+        
+        # 5. Update DB
+        clip.file_path = clip_path
+        db.commit()
+        db.refresh(clip)
+        
+        return clip
+
+    except Exception as e:
+        print(f"Error generating clip: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate clip: {str(e)}")
 
 @router.get("/{clip_id}/download")
 def download_clip(

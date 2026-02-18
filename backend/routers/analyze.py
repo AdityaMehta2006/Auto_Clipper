@@ -16,14 +16,14 @@ from config import DOWNLOADS_DIR
 router = APIRouter(prefix="/api/analyze", tags=["analyze"])
 
 
-@router.post("/{video_id}", response_model=ClipResponse)
+@router.post("/{video_id}", response_model=list[ClipResponse])
 def analyze_video(
     video_id: str,
     mode: str = Query("standard", regex="^(standard|short-form)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Full pipeline: download video + transcript → Gemini AI → FFmpeg clip."""
+    """Full pipeline: download video + transcript → Gemini AI → Create Clip Suggestions."""
     # 1. Get video record
     video = db.query(Video).filter(
         Video.id == video_id,
@@ -54,7 +54,7 @@ def analyze_video(
         
         video.transcript_text = transcript_text
 
-        # 4. Download video file
+        # 4. Download video file (Need it local for eventual clipping)
         # For local files, download_file returns the absolute path directly
         # For Drive, we need to download it to DOWNLOADS_DIR
         if DATA_SOURCE == "local":
@@ -66,35 +66,33 @@ def analyze_video(
         
         video.local_path = video_local
 
-        # 5. Analyze transcript with Gemini
-        analysis = analyze_transcript(transcript_text, mode=mode)
+        # 5. Analyze transcript with Gemini (Returns list of 3 suggestions)
+        analysis_list = analyze_transcript(transcript_text, mode=mode)
 
-        # 6. Clip with FFmpeg
-        clip_name = f"clip_{uuid.uuid4().hex[:8]}"
-        clip_path = clip_video(
-            input_path=video_local,
-            start_time=analysis["start_time"],
-            end_time=analysis["end_time"],
-            output_name=clip_name,
-        )
-
-        # 7. Save clip to DB
-        clip = Clip(
-            video_id=video.id,
-            start_time=analysis["start_time"],
-            end_time=analysis["end_time"],
-            ai_reason=analysis["reason"],
-            virality_score=analysis["virality_score"],
-            suggested_title=analysis["suggested_title"],
-            file_path=clip_path,
-            prompt_used=analysis["prompt_used"],
-        )
-        db.add(clip)
-        video.status = "clipped"
+        created_clips = []
+        
+        # 6. Create Clip Suggestions (No FFmpeg yet)
+        for analysis in analysis_list:
+            clip = Clip(
+                video_id=video.id,
+                start_time=analysis["start_time"],
+                end_time=analysis["end_time"],
+                ai_reason=analysis["reason"],
+                virality_score=analysis["virality_score"],
+                suggested_title=analysis["suggested_title"],
+                file_path=None,  # Not generated yet
+                prompt_used=analysis.get("prompt_used"),
+            )
+            db.add(clip)
+            created_clips.append(clip)
+            
+        video.status = "clipped" # Or "analyzed"? standard says "clipped", let's keep it to verify flow
         db.commit()
-        db.refresh(clip)
+        
+        for clip in created_clips:
+            db.refresh(clip)
 
-        return clip
+        return created_clips
 
     except Exception as e:
         import traceback

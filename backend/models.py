@@ -72,6 +72,10 @@ class Clip(Base):
         "Feedback", back_populates="clip", cascade="all, delete-orphan"
     )
 
+    @property
+    def video_title(self):
+        return self.video.title if self.video else None
+
 
 # ── Feedback ───────────────────────────────────────────
 class Feedback(Base):

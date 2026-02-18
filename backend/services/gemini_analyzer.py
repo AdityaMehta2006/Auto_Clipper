@@ -5,7 +5,8 @@ from config import GEMINI_API_KEY, GEMINI_MODEL
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-BASE_PROMPT = """You are a viral content expert. Analyze the following video transcript and identify the SINGLE BEST segment that would make the most viral clip.
+BASE_PROMPT = """You are a viral content expert. Analyze the following video transcript and identify the 3 BEST DISTINCT segments that would make viral clips.
+Each segment should target a different angle or part of the video.
 
 {duration_guidance}
 
@@ -15,19 +16,23 @@ Consider these factors:
 - Strong hook in the first few seconds of the segment
 - Clean start/end points (not mid-sentence)
 
-Return ONLY valid JSON with this exact structure:
-{{
-  "start_time": "HH:MM:SS",
-  "end_time": "HH:MM:SS",
-  "reason": "Detailed explanation of why this segment was chosen...",
-  "virality_score": 8.5,
-  "suggested_title": "A catchy title for the clip"
-}}
+Return ONLY a valid JSON list of 3 objects with this exact structure:
+[
+  {{
+    "start_time": "HH:MM:SS",
+    "end_time": "HH:MM:SS",
+    "reason": "Detailed explanation of why this segment was chosen...",
+    "virality_score": 8.5,
+    "suggested_title": "A catchy title for the clip"
+  }},
+  {{ ... }},
+  {{ ... }}
+]
 
 TRANSCRIPT:
 """
 
-AGGRESSIVE_PROMPT = """You are a rigorous viral content editor for TikTok/Reels. MAXIMIZE RETENTION. Find the most ATTENTION-GRABBING, HIGH-ENERGY segment.
+AGGRESSIVE_PROMPT = """You are a rigorous viral content editor for TikTok/Reels. MAXIMIZE RETENTION. Find the 3 MOST ATTENTION-GRABBING, HIGH-ENERGY segments (distinct from each other).
 
 MANDATORY RULES:
 1. START with a HOOK (loud, controversial, or surprising statement).
@@ -35,14 +40,18 @@ MANDATORY RULES:
 3. PREFER short, punchy segments (15-60s).
 4. IGNORE context if it kills the pacing.
 
-Return ONLY valid JSON:
-{{
-  "start_time": "HH:MM:SS",
-  "end_time": "HH:MM:SS",
-  "reason": "WHY is this viral? (e.g. 'Strong hook at 0:00', 'High emotional peak')",
-  "virality_score": 9.5,
-  "suggested_title": "CLICKBAIT TITLE (All Caps)"
-}}
+Return ONLY a valid JSON list of 3 objects:
+[
+  {{
+    "start_time": "HH:MM:SS",
+    "end_time": "HH:MM:SS",
+    "reason": "WHY is this viral? (e.g. 'Strong hook at 0:00', 'High emotional peak')",
+    "virality_score": 9.5,
+    "suggested_title": "CLICKBAIT TITLE (All Caps)"
+  }},
+  {{ ... }},
+  {{ ... }}
+]
 
 TRANSCRIPT:
 """
@@ -62,8 +71,8 @@ def _estimate_duration(transcript: str) -> str:
 
 
 
-def analyze_transcript(transcript: str, extra_context: str = "", mode: str = "standard") -> dict:
-    """Send transcript to Gemini, return parsed clip suggestion.
+def analyze_transcript(transcript: str, extra_context: str = "", mode: str = "standard") -> list[dict]:
+    """Send transcript to Gemini, return list of 3 clip suggestions.
     
     Args:
         transcript: Full transcript text.
@@ -71,7 +80,7 @@ def analyze_transcript(transcript: str, extra_context: str = "", mode: str = "st
         mode: 'standard' or 'short-form' (aggressive).
     
     Returns:
-        dict with start_time, end_time, reason, virality_score, suggested_title.
+        list of dicts, each with start_time, end_time, reason, virality_score, suggested_title.
     """
     duration_guidance = _estimate_duration(transcript)
     
@@ -112,12 +121,14 @@ def analyze_transcript(transcript: str, extra_context: str = "", mode: str = "st
         text = text.rsplit("```", 1)[0]  # Remove closing ```
         text = text.strip()
 
-    result = json.loads(text)
-    return {
-        "start_time": result["start_time"],
-        "end_time": result["end_time"],
-        "reason": result["reason"],
-        "virality_score": float(result.get("virality_score", 0)),
-        "suggested_title": result.get("suggested_title", "Untitled Clip"),
-        "prompt_used": prompt,
-    }
+    result_list = json.loads(text)
+    
+    # Ensure it's a list
+    if isinstance(result_list, dict):
+        result_list = [result_list]
+        
+    # Inject prompt used for debugging
+    for res in result_list:
+        res["prompt_used"] = prompt
+        
+    return result_list
