@@ -37,6 +37,8 @@ DATA_SOURCE = os.getenv("DATA_SOURCE", "google_drive")
 GDRIVE_ROOT_FOLDER_ID = os.getenv("GDRIVE_ROOT_FOLDER_ID", "")
 LOCAL_VIDEO_PATH = Path(os.getenv("LOCAL_VIDEO_PATH", r"D:\Auto_Clipper\vids"))
 LOCAL_VIDEO_PATH.mkdir(parents=True, exist_ok=True)
+DATA_SOURCES_DIR = Path(os.getenv("DATA_SOURCES_DIR", "./data/DataSources"))
+DATA_SOURCES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── FFmpeg ─────────────────────────────────────────────
 FFMPEG_PATH = os.getenv("FFMPEG_PATH", "ffmpeg")

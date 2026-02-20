@@ -34,7 +34,7 @@ class VideoImportRequest(BaseModel):
     drive_folder_id: str
     title: str
     drive_video_id: str
-    drive_transcript_id: str
+    drive_transcript_id: Optional[str] = None
 
 class VideoResponse(BaseModel):
     id: str

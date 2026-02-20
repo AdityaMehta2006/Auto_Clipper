@@ -45,14 +45,18 @@ def analyze_video(
         source = get_data_source()
 
     try:
-        # 3. Download transcript
-        try:
-            transcript_text = source.get_file_content(video.drive_transcript_id)
-        except Exception:
-             # Fallback: maybe transcript ID is a path?
-             transcript_text = source.get_file_content(video.drive_transcript_id) 
-        
-        video.transcript_text = transcript_text
+        # 3. Get transcript
+        if video.transcript_text:
+            transcript_text = video.transcript_text
+        elif video.drive_transcript_id:
+            try:
+                transcript_text = source.get_file_content(video.drive_transcript_id)
+            except Exception:
+                 # Fallback: maybe transcript ID is a path?
+                 transcript_text = source.get_file_content(video.drive_transcript_id) 
+            video.transcript_text = transcript_text
+        else:
+            raise HTTPException(status_code=400, detail="No transcript available. Please generate one first.")
 
         # 4. Download video file (Need it local for eventual clipping)
         # For local files, download_file returns the absolute path directly
