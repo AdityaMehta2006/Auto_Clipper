@@ -41,6 +41,8 @@ class VideoResponse(BaseModel):
     title: str
     status: str
     drive_folder_id: Optional[str] = None
+    drive_video_id: Optional[str] = None
+    drive_transcript_id: Optional[str] = None
     transcript_text: Optional[str] = None
     created_at: datetime
 

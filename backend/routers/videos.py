@@ -24,12 +24,39 @@ def import_video(
     if existing:
         raise HTTPException(status_code=400, detail="Folder already imported")
 
+    # Auto-detect transcript if not provided
+    transcript_id = req.drive_transcript_id
+    transcript_text = None
+    
+    if not transcript_id and req.drive_folder_id:
+        # Check if using LocalFileSource (drive_folder_id usually matches folder name)
+        from config import LOCAL_VIDEO_PATH
+        folder_path = LOCAL_VIDEO_PATH / req.drive_folder_id
+        if folder_path.exists():
+            # Known transcript extensions
+            trans_exts = [".json", ".srt", ".vtt", ".txt"]
+            for f in folder_path.iterdir():
+                # Check for "transcript" or exact match in extensions
+                if f.stem.lower() == "transcript" or f.name.lower() in ["transcript.json", "transcript.srt", "transcript.vtt", "transcript.txt"]:
+                    if f.suffix.lower() in trans_exts:
+                         transcript_id = f"{req.drive_folder_id}/{f.name}"
+                         # Optimization: Read content immediately
+                         try:
+                             transcript_text = f.read_text(encoding="utf-8")
+                         except Exception:
+                             try:
+                                 transcript_text = f.read_text(encoding="latin-1")
+                             except Exception:
+                                 pass
+                         break
+
     video = Video(
         user_id=current_user.id,
         title=req.title,
         drive_folder_id=req.drive_folder_id,
         drive_video_id=req.drive_video_id,
-        drive_transcript_id=req.drive_transcript_id,
+        drive_transcript_id=transcript_id,
+        transcript_text=transcript_text,
         status="pending",
     )
     db.add(video)
@@ -125,6 +152,18 @@ def transcribe_video_endpoint(
         potential_path = LOCAL_VIDEO_PATH / video.drive_video_id
         if potential_path.exists():
             source_path = potential_path
+        elif (LOCAL_VIDEO_PATH / video.drive_folder_id / video.drive_video_id.split("/")[-1]).exists():
+             source_path = LOCAL_VIDEO_PATH / video.drive_folder_id / video.drive_video_id.split("/")[-1]
+    
+    # NEW: Try finding ANY video file in the folder if title matching fails
+    if not source_path and video.drive_folder_id:
+        folder_path = LOCAL_VIDEO_PATH / video.drive_folder_id
+        if folder_path.exists():
+             video_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts"}
+             for f in folder_path.iterdir():
+                 if f.suffix.lower() in video_exts:
+                     source_path = f
+                     break
     
     if not source_path:
         # Fallback: try to find any mp4 with the title in common dirs

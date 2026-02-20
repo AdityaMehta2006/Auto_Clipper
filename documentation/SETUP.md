@@ -42,6 +42,10 @@ GEMINI_API_KEY=your_gemini_api_key_here
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 SECRET_KEY=your_random_secret_string
+
+# Storage and Local Video Path
+DATA_SOURCES_DIR=./data/DataSources
+LOCAL_VIDEO_PATH=D:\Auto_Clipper\vids
 ```
 *(See `backend/.env.example` for reference)*
 

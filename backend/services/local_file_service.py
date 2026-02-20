@@ -32,10 +32,18 @@ class LocalFileSource(DataSource):
             return []
 
         files = []
+        video_extensions = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts"}
+        
         for item in folder_path.iterdir():
             if item.is_file():
                 # Guess mime type
                 mime, _ = mimetypes.guess_type(item)
+                
+                # Manual override for known video extensions if guessing fails
+                if not mime or mime == "application/octet-stream":
+                    if item.suffix.lower() in video_extensions:
+                        mime = f"video/{item.suffix[1:]}"
+
                 files.append(FileInfo(
                     id=f"{folder_id}/{item.name}",  # ID is relative path from root
                     name=item.name,
@@ -59,9 +67,17 @@ class LocalFileSource(DataSource):
 
     def get_file_content(self, file_id: str) -> str:
         """Read text content of a file (e.g., transcript)."""
-        source_path = LOCAL_VIDEO_PATH / file_id
+        # file_id might be "Folder/file.json" (relative) or absolute path
+        if os.path.isabs(file_id):
+            source_path = Path(file_id)
+        else:
+            source_path = LOCAL_VIDEO_PATH / file_id
+            
         if not source_path.exists():
-            raise FileNotFoundError(f"File not found: {source_path}")
+             # Fallback: maybe it's just the filename in the same folder?
+             # But we don't know the folder here easily without context.
+             # Assume relative to LOCAL_VIDEO_PATH for now.
+             raise FileNotFoundError(f"File not found: {source_path}")
         
         try:
             return source_path.read_text(encoding="utf-8")

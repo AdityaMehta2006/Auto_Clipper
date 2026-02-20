@@ -18,6 +18,7 @@ export default function VideoDetail() {
     const navigate = useNavigate();
     const [video, setVideo] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [transcribing, setTranscribing] = useState(false);
     const [feedbackClip, setFeedbackClip] = useState(null);
 
     const fetchVideo = async () => {
@@ -50,6 +51,32 @@ export default function VideoDetail() {
             fetchVideo();
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Redo failed');
+        }
+    };
+
+    const handleTranscribe = async () => {
+        setTranscribing(true);
+        try {
+            await client.post(`/api/videos/${videoId}/transcribe`);
+            toast.success('Transcript generated!');
+            fetchVideo();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Transcription failed');
+        } finally {
+            setTranscribing(false);
+        }
+    };
+
+    const handleAnalyze = async () => {
+        setLoading(true);
+        try {
+            await client.post(`/api/analyze/${videoId}`);
+            toast.success('Analysis complete!');
+            fetchVideo();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Analysis failed');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -101,7 +128,19 @@ export default function VideoDetail() {
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                         <Description sx={{ fontSize: 18, color: 'secondary.main' }} />
-                        <Typography variant="body2" color="text.secondary" fontWeight={500}>Transcript</Typography>
+                        {(video.transcript_text || video.drive_transcript_id) ? (
+                            <Typography variant="body2" color="text.secondary" fontWeight={500}>Transcript available</Typography>
+                        ) : (
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={handleTranscribe}
+                                disabled={transcribing}
+                                sx={{ borderRadius: 2, textTransform: 'none', py: 0 }}
+                            >
+                                {transcribing ? 'Generating...' : 'Generate Transcript'}
+                            </Button>
+                        )}
                     </Box>
                 </Box>
 
@@ -136,8 +175,28 @@ export default function VideoDetail() {
                             No clips generated yet.
                         </Typography>
                         <Button variant="outlined" onClick={() => navigate('/files')}>
-                            Go to Analysis
+                            Back to Files
                         </Button>
+
+                        <Box sx={{ mt: 2 }}>
+                            {(!video.transcript_text && !video.drive_transcript_id) ? (
+                                <Button
+                                    variant="contained"
+                                    onClick={handleTranscribe}
+                                    disabled={transcribing}
+                                >
+                                    {transcribing ? 'Generating Transcript...' : 'Generate Transcript to Start'}
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="contained"
+                                    onClick={handleAnalyze}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Analyzing...' : 'Analyze Video'}
+                                </Button>
+                            )}
+                        </Box>
                     </Box>
                 )}
             </Box>

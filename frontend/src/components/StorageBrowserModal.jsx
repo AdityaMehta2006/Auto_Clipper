@@ -49,8 +49,17 @@ export default function StorageBrowserModal({ open, onClose, onImport }) {
             setFiles(fileList);
 
             // Auto-detect candidates
-            const video = fileList.find(f => f.mime_type.startsWith('video/') || f.name.endsWith('.mp4'));
-            const transcript = fileList.find(f => f.name.endsWith('.srt') || f.name.endsWith('.vtt') || f.name.endsWith('.txt'));
+            const videoExtensions = ['.mp4', '.mkv', '.mov', '.avi', '.webm', '.ts'];
+            const transcriptExtensions = ['.srt', '.vtt', '.txt', '.json'];
+
+            const video = fileList.find(f =>
+                f.mime_type.startsWith('video/') ||
+                videoExtensions.some(ext => f.name.toLowerCase().endsWith(ext))
+            );
+            const transcript = fileList.find(f =>
+                transcriptExtensions.some(ext => f.name.toLowerCase().endsWith(ext)) ||
+                f.name.toLowerCase().includes('transcript')
+            );
 
             setAnalyzingIds({
                 video: video?.id || null,
@@ -66,8 +75,8 @@ export default function StorageBrowserModal({ open, onClose, onImport }) {
     };
 
     const handleImport = () => {
-        if (!analyzingIds.video || !analyzingIds.transcript) {
-            toast.error('Need both video and transcript files');
+        if (!analyzingIds.video) {
+            toast.error('Need a video file');
             return;
         }
 
@@ -137,7 +146,9 @@ export default function StorageBrowserModal({ open, onClose, onImport }) {
                                                 <Typography variant="caption" fontWeight={600}>Transcript Found</Typography>
                                             </Box>
                                         ) : (
-                                            <Typography variant="caption" color="error">Missing Transcript</Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: '#fff3e0', px: 1, py: 0.5, borderRadius: 1 }}>
+                                                <Typography variant="caption" color="warning.main" fontWeight={600}>Missing Transcript (Can Generate Later)</Typography>
+                                            </Box>
                                         )}
                                     </Box>
                                 </Box>
@@ -168,7 +179,7 @@ export default function StorageBrowserModal({ open, onClose, onImport }) {
                 <Button
                     variant="contained"
                     onClick={handleImport}
-                    disabled={!currentFolder || !analyzingIds.video || !analyzingIds.transcript}
+                    disabled={!currentFolder || !analyzingIds.video}
                 >
                     Import Analysis
                 </Button>

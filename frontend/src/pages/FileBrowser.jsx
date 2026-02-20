@@ -20,6 +20,7 @@ export default function FileBrowser() {
     const [videos, setVideos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [analyzingId, setAnalyzingId] = useState(null);
+    const [transcribingId, setTranscribingId] = useState(null);
     const [importModalOpen, setImportModalOpen] = useState(false);
 
     const fetchVideos = async () => {
@@ -65,6 +66,19 @@ export default function FileBrowser() {
             toast.error(err.response?.data?.detail || 'Analysis failed');
         } finally {
             setAnalyzingId(null);
+        }
+    };
+
+    const handleTranscribe = async (videoId) => {
+        setTranscribingId(videoId);
+        try {
+            await client.post(`/api/videos/${videoId}/transcribe`);
+            toast.success('Transcript generated!');
+            fetchVideos();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Transcription failed');
+        } finally {
+            setTranscribingId(null);
         }
     };
 
@@ -179,8 +193,10 @@ export default function FileBrowser() {
                                         <FileCard
                                             video={video}
                                             onAnalyze={handleAnalyze}
+                                            onTranscribe={handleTranscribe}
                                             onViewClips={(id) => navigate(`/videos/${id}`)}
                                             analyzing={analyzingId === video.id}
+                                            transcribing={transcribingId === video.id}
                                         />
                                     </motion.div>
                                 </Grid>
