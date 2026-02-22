@@ -45,12 +45,38 @@ export default function VideoDetail() {
     };
 
     const handleFeedback = async (clipId, feedback) => {
+        if (feedback === null) {
+            // FeedbackModal already handled the SSE call — hard reload to show new clips
+            toast.success('New suggestion ready!');
+            window.location.reload();
+            return;
+        }
         try {
             await client.post(`/api/clips/${clipId}/feedback`, { user_feedback: feedback });
-            toast.success('New clip generated from feedback!');
+            toast.success('New suggestion ready! Click Generate to create it.');
             fetchVideo();
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Redo failed');
+        }
+    };
+
+    const handleReject = async (clipId) => {
+        try {
+            await client.delete(`/api/clips/${clipId}/reject`);
+            toast('Clip removed', { icon: '👋' });
+            fetchVideo();
+        } catch {
+            toast.error('Failed to reject');
+        }
+    };
+
+    const handleGenerate = async (clipId) => {
+        try {
+            await client.post(`/api/clips/${clipId}/generate`);
+            toast.success('Clip generated!');
+            fetchVideo();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Generation failed');
         }
     };
 
@@ -100,7 +126,7 @@ export default function VideoDetail() {
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-            <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
+            <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1280, mx: 'auto' }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                     <motion.div whileTap={{ scale: 0.9 }}>
@@ -155,14 +181,16 @@ export default function VideoDetail() {
 
                 {video.clips?.length ? (
                     <motion.div variants={stagger} initial="hidden" animate="show">
-                        <Grid container spacing={3}>
+                        <Grid container spacing={2.5}>
                             {video.clips.map((clip) => (
-                                <Grid key={clip.id} size={{ xs: 12, md: 6 }}>
-                                    <motion.div variants={fadeUp}>
+                                <Grid key={clip.id} item xs={12} sm={6} lg={4}>
+                                    <motion.div variants={fadeUp} style={{ height: '100%' }}>
                                         <ClipCard
                                             clip={clip}
                                             onApprove={handleApprove}
+                                            onReject={handleReject}
                                             onFeedback={(c) => setFeedbackClip(c)}
+                                            onGenerate={handleGenerate}
                                         />
                                     </motion.div>
                                 </Grid>

@@ -77,24 +77,42 @@ export default function Navbar() {
                             {navItems.map((item) => {
                                 const isActive = location.pathname === item.path;
                                 return (
-                                    <motion.div key={item.path} whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}>
-                                        <Button
-                                            component={Link}
-                                            to={item.path}
-                                            startIcon={item.icon}
-                                            sx={{
-                                                color: isActive ? 'secondary.main' : 'rgba(255,255,255,0.7)',
-                                                fontWeight: isActive ? 700 : 500,
-                                                fontSize: '0.85rem',
-                                                bgcolor: isActive ? 'rgba(184,137,79,0.1)' : 'transparent',
-                                                borderRadius: 2,
-                                                px: 2,
-                                                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.06)' },
-                                            }}
-                                        >
-                                            {item.label}
-                                        </Button>
-                                    </motion.div>
+                                    <Box key={item.path} sx={{ position: 'relative' }}>
+                                        <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}>
+                                            <Button
+                                                component={Link}
+                                                to={item.path}
+                                                startIcon={item.icon}
+                                                sx={{
+                                                    color: isActive ? 'secondary.main' : 'rgba(255,255,255,0.7)',
+                                                    fontWeight: isActive ? 700 : 500,
+                                                    fontSize: '0.85rem',
+                                                    bgcolor: isActive ? 'rgba(184,137,79,0.1)' : 'transparent',
+                                                    borderRadius: 2,
+                                                    px: 2,
+                                                    '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.06)' },
+                                                }}
+                                            >
+                                                {item.label}
+                                            </Button>
+                                        </motion.div>
+                                        {/* Active indicator bar */}
+                                        {isActive && (
+                                            <motion.div
+                                                layoutId="nav-indicator"
+                                                style={{
+                                                    position: 'absolute',
+                                                    bottom: -10,
+                                                    left: '20%',
+                                                    right: '20%',
+                                                    height: 2,
+                                                    borderRadius: 1,
+                                                    background: '#D4A843',
+                                                }}
+                                                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                                            />
+                                        )}
+                                    </Box>
                                 );
                             })}
                         </Box>

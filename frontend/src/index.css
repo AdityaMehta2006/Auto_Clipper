@@ -26,6 +26,13 @@ a {
   text-decoration: none;
 }
 
+/* Focus-visible ring for keyboard nav */
+*:focus-visible {
+  outline: 2px solid rgba(26, 58, 107, 0.45);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -45,4 +52,15 @@ a {
 /* Selection color */
 ::selection {
   background: rgba(26, 58, 107, 0.15);
+}
+
+/* Page transition helper */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }

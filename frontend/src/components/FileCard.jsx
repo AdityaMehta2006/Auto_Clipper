@@ -1,20 +1,23 @@
+import { useState } from 'react';
 import { Card, CardContent, Box, Typography, Chip, Button, LinearProgress, Switch, FormControlLabel } from '@mui/material';
-import { Movie, Description, CheckCircle, HourglassEmpty, Error as ErrorIcon } from '@mui/icons-material';
+import { Movie, Description, CheckCircle, HourglassEmpty, Error as ErrorIcon, TextSnippet } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
 const statusConfig = {
     pending: { label: 'Pending', color: 'warning', icon: <HourglassEmpty sx={{ fontSize: 16 }} /> },
-    clipped: { label: 'Clipped', color: 'success', icon: <CheckCircle sx={{ fontSize: 16 }} /> },
+    clipped: { label: 'Analyzed', color: 'success', icon: <CheckCircle sx={{ fontSize: 16 }} /> },
     failed: { label: 'Failed', color: 'error', icon: <ErrorIcon sx={{ fontSize: 16 }} /> },
 };
-
-import { useState } from 'react';
-
-// ...
 
 export default function FileCard({ video, onAnalyze, onTranscribe, onViewClips, analyzing, transcribing }) {
     const status = statusConfig[video.status] || statusConfig.pending;
     const [mode, setMode] = useState('standard');
+
+    const hasTranscript = !!(video.transcript_text || video.drive_transcript_id);
+    // Estimate word count from transcript text (rough)
+    const wordCount = video.transcript_text
+        ? video.transcript_text.split(/\s+/).filter(Boolean).length
+        : null;
 
     return (
         <motion.div
@@ -53,15 +56,29 @@ export default function FileCard({ video, onAnalyze, onTranscribe, onViewClips, 
                     </Box>
 
                     {/* File indicators */}
-                    <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Movie sx={{ fontSize: 16, color: 'primary.main' }} />
                             <Typography variant="caption" sx={{ color: 'text.secondary' }}>Video</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Description sx={{ fontSize: 16, color: (video.transcript_text || video.drive_transcript_id) ? 'secondary.main' : 'text.disabled' }} />
-                            <Typography variant="caption" sx={{ color: (video.transcript_text || video.drive_transcript_id) ? 'text.secondary' : 'text.disabled' }}>Transcript</Typography>
+                            <Description sx={{ fontSize: 16, color: hasTranscript ? 'secondary.main' : 'text.disabled' }} />
+                            <Typography variant="caption" sx={{ color: hasTranscript ? 'text.secondary' : 'text.disabled' }}>
+                                Transcript
+                            </Typography>
                         </Box>
+                        {/* Show transcript detail if available */}
+                        {hasTranscript && wordCount && (
+                            <Box sx={{
+                                display: 'flex', alignItems: 'center', gap: 0.4,
+                                bgcolor: 'rgba(198,151,95,0.08)', px: 0.8, py: 0.2, borderRadius: 1,
+                            }}>
+                                <TextSnippet sx={{ fontSize: 12, color: 'secondary.dark' }} />
+                                <Typography variant="caption" sx={{ fontSize: '0.68rem', color: 'secondary.dark', fontWeight: 600 }}>
+                                    ~{wordCount.toLocaleString()} words
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
 
                     <Box sx={{ mt: 'auto', pt: 1 }}>
@@ -86,8 +103,7 @@ export default function FileCard({ video, onAnalyze, onTranscribe, onViewClips, 
                                     />
                                 </Box>
                             ) : (
-                                // Logic: Only show Analyze if transcript exists (text or ID)
-                                (video.transcript_text || video.drive_transcript_id) ? (
+                                hasTranscript ? (
                                     <motion.div whileTap={{ scale: 0.98 }}>
                                         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <Box>

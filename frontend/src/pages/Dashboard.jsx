@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import {
     FolderOpen, MovieFilter, CheckCircle, HourglassEmpty, Error as ErrorIcon,
-    CloudDone, CloudOff, ArrowForward,
+    CloudDone, CloudOff, ArrowForward, ThumbUp,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import client from '../api/client';
@@ -59,6 +59,51 @@ function StatCard({ icon, label, value, accent }) {
     );
 }
 
+function QuickActionCard({ to, icon, iconBg, iconBorder, iconColor, title, subtitle, hoverBorder }) {
+    return (
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+            <Card
+                component={Link}
+                to={to}
+                variant="outlined"
+                sx={{
+                    textDecoration: 'none',
+                    p: 2.5,
+                    borderRadius: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2.5,
+                    borderColor: 'divider',
+                    transition: 'all 0.25s ease',
+                    '&:hover': {
+                        borderColor: hoverBorder,
+                        boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,243,248,0.6))',
+                    },
+                }}
+            >
+                <Box sx={{
+                    width: 50, height: 50, borderRadius: 2,
+                    bgcolor: iconBg, color: iconColor,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: '1px solid', borderColor: iconBorder,
+                }}>
+                    {icon}
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
+                        {title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {subtitle}
+                    </Typography>
+                </Box>
+                <ArrowForward sx={{ color: 'text.disabled' }} />
+            </Card>
+        </motion.div>
+    );
+}
+
 export default function Dashboard() {
     const { user } = useAuth();
     const [stats, setStats] = useState(null);
@@ -79,9 +124,10 @@ export default function Dashboard() {
                     clipped: videos.filter((v) => v.status === 'clipped').length,
                     failed: videos.filter((v) => v.status === 'failed').length,
                     totalClips: clips.length,
+                    approvedClips: clips.filter((c) => c.is_approved === true).length,
                 });
             } catch {
-                setStats({ totalVideos: 0, pending: 0, clipped: 0, failed: 0, totalClips: 0 });
+                setStats({ totalVideos: 0, pending: 0, clipped: 0, failed: 0, totalClips: 0, approvedClips: 0 });
             } finally {
                 setLoading(false);
             }
@@ -94,7 +140,7 @@ export default function Dashboard() {
             const res = await client.get('/api/auth/google/connect');
             window.location.href = res.data.auth_url;
         } catch {
-            // If Google credentials aren't configured
+            // Google credentials not configured
         }
     };
 
@@ -103,8 +149,8 @@ export default function Dashboard() {
             <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
                 <Skeleton variant="text" width={200} height={40} sx={{ mb: 3 }} />
                 <Grid container spacing={2.5}>
-                    {[1, 2, 3, 4].map((i) => (
-                        <Grid key={i} size={{ xs: 6, md: 3 }}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <Grid key={i} item xs={6} md={2.4}>
                             <Skeleton variant="rounded" height={110} sx={{ borderRadius: 4 }} />
                         </Grid>
                     ))}
@@ -162,10 +208,10 @@ export default function Dashboard() {
                     </motion.div>
                 )}
 
-                {/* Stats */}
+                {/* Stats — 5 cards */}
                 <motion.div variants={stagger} initial="hidden" animate="show">
                     <Grid container spacing={2.5}>
-                        <Grid item xs={6} md={3}>
+                        <Grid item xs={6} md>
                             <StatCard
                                 icon={<FolderOpen sx={{ color: '#1A3A6B', fontSize: 24 }} />}
                                 label="Total Videos"
@@ -173,7 +219,7 @@ export default function Dashboard() {
                                 accent="#1A3A6B"
                             />
                         </Grid>
-                        <Grid item xs={6} md={3}>
+                        <Grid item xs={6} md>
                             <StatCard
                                 icon={<HourglassEmpty sx={{ color: '#D4A843', fontSize: 24 }} />}
                                 label="Pending"
@@ -181,20 +227,28 @@ export default function Dashboard() {
                                 accent="#D4A843"
                             />
                         </Grid>
-                        <Grid item xs={6} md={3}>
+                        <Grid item xs={6} md>
                             <StatCard
                                 icon={<CheckCircle sx={{ color: '#1D8348', fontSize: 24 }} />}
-                                label="Clipped"
+                                label="Analyzed"
                                 value={stats?.clipped ?? 0}
                                 accent="#1D8348"
                             />
                         </Grid>
-                        <Grid item xs={6} md={3}>
+                        <Grid item xs={6} md>
                             <StatCard
                                 icon={<MovieFilter sx={{ color: '#B8894F', fontSize: 24 }} />}
                                 label="Total Clips"
                                 value={stats?.totalClips ?? 0}
                                 accent="#B8894F"
+                            />
+                        </Grid>
+                        <Grid item xs={6} md>
+                            <StatCard
+                                icon={<ThumbUp sx={{ color: '#16a34a', fontSize: 24 }} />}
+                                label="Approved"
+                                value={stats?.approvedClips ?? 0}
+                                accent="#16a34a"
                             />
                         </Grid>
                     </Grid>
@@ -203,88 +257,28 @@ export default function Dashboard() {
                 <Typography variant="h6" sx={{ mt: 5, mb: 2.5, fontWeight: 700 }}>Quick Actions</Typography>
                 <Grid container spacing={2.5}>
                     <Grid item xs={12} sm={6}>
-                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-                            <Card
-                                component={Link}
-                                to="/files"
-                                variant="outlined"
-                                sx={{
-                                    textDecoration: 'none',
-                                    p: 2.5,
-                                    borderRadius: 3,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 2.5,
-                                    borderColor: 'divider',
-                                    transition: 'all 0.2s',
-                                    '&:hover': {
-                                        borderColor: 'primary.main',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                                        bgcolor: 'rgba(255,255,255,0.5)',
-                                    },
-                                }}
-                            >
-                                <Box sx={{
-                                    width: 50, height: 50, borderRadius: 2,
-                                    bgcolor: 'primary.50', color: 'primary.main',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '1px solid', borderColor: 'primary.100',
-                                }}>
-                                    <FolderOpen fontSize="medium" />
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
-                                        Browse Files
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                                        Import and manage videos
-                                    </Typography>
-                                </Box>
-                                <ArrowForward sx={{ color: 'text.disabled' }} />
-                            </Card>
-                        </motion.div>
+                        <QuickActionCard
+                            to="/files"
+                            icon={<FolderOpen fontSize="medium" />}
+                            iconBg="primary.50"
+                            iconColor="primary.main"
+                            iconBorder="primary.100"
+                            hoverBorder="primary.main"
+                            title="Browse Files"
+                            subtitle="Import and manage videos"
+                        />
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-                            <Card
-                                component={Link}
-                                to="/clips"
-                                variant="outlined"
-                                sx={{
-                                    textDecoration: 'none',
-                                    p: 2.5,
-                                    borderRadius: 3,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 2.5,
-                                    borderColor: 'divider',
-                                    transition: 'all 0.2s',
-                                    '&:hover': {
-                                        borderColor: 'secondary.main',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                                        bgcolor: 'rgba(255,255,255,0.5)',
-                                    },
-                                }}
-                            >
-                                <Box sx={{
-                                    width: 50, height: 50, borderRadius: 2,
-                                    bgcolor: '#FFF8E1', color: '#F57C00',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '1px solid', borderColor: '#FFE0B2',
-                                }}>
-                                    <MovieFilter fontSize="medium" />
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
-                                        View Clips
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                                        Review viral highlights
-                                    </Typography>
-                                </Box>
-                                <ArrowForward sx={{ color: 'text.disabled' }} />
-                            </Card>
-                        </motion.div>
+                        <QuickActionCard
+                            to="/clips"
+                            icon={<MovieFilter fontSize="medium" />}
+                            iconBg="#FFF8E1"
+                            iconColor="#F57C00"
+                            iconBorder="#FFE0B2"
+                            hoverBorder="secondary.main"
+                            title="View Clips"
+                            subtitle="Review viral highlights"
+                        />
                     </Grid>
                 </Grid>
             </Box>

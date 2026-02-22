@@ -44,6 +44,7 @@ app.include_router(files.router)
 app.include_router(videos.router)
 app.include_router(analyze.router)
 app.include_router(clips.router)
+app.include_router(feedback.router)
 
 # Server reload triggered for config update
 

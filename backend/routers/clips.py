@@ -1,4 +1,5 @@
-"""Clip routes: list, detail, approve, download."""
+"""Clip routes: list, detail, approve, generate, download."""
+import uuid
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -11,20 +12,41 @@ from middleware.auth import get_current_user
 router = APIRouter(prefix="/api/clips", tags=["clips"])
 
 
+def _assign_clip_indexes(clips: list[Clip]) -> list[dict]:
+    """
+    Given an ordered list of Clip ORM objects (oldest first), return
+    a list of dicts ready to serialise into ClipResponse, with a
+    1-based ``clip_index`` field added.
+    """
+    # Group by video_id, preserve insertion order
+    from collections import defaultdict
+    per_video: dict[str, list[Clip]] = defaultdict(list)
+    for c in clips:
+        per_video[c.video_id].append(c)
+
+    result = []
+    for c in clips:
+        idx = per_video[c.video_id].index(c) + 1
+        d = ClipResponse.model_validate(c).model_dump()
+        d["clip_index"] = idx
+        result.append(d)
+    return result
+
+
 @router.get("/", response_model=list[ClipResponse])
 def list_clips(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all clips for the current user."""
+    """List all clips for the current user, with per-video clip_index."""
     clips = (
         db.query(Clip)
         .join(Video)
         .filter(Video.user_id == current_user.id)
-        .order_by(Clip.created_at.desc())
+        .order_by(Clip.created_at.asc())   # oldest first so index is stable
         .all()
     )
-    return clips
+    return _assign_clip_indexes(clips)
 
 
 @router.get("/{clip_id}", response_model=ClipDetailResponse)
@@ -65,8 +87,7 @@ def approve_clip(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Mark a clip as approved and remove other suggestions for the same video."""
-    # 1. Get the target clip
+    """Mark a clip as approved. Multiple clips per video can be approved."""
     clip = (
         db.query(Clip)
         .join(Video)
@@ -76,35 +97,39 @@ def approve_clip(
     if not clip:
         raise HTTPException(status_code=404, detail="Clip not found")
 
-    # 2. Approve it
     clip.is_approved = True
-    
-    # 3. Find and delete siblings
-    siblings = (
-        db.query(Clip)
-        .filter(Clip.video_id == clip.video_id, Clip.id != clip.id)
-        .all()
-    )
-    
-    deleted_count = 0
-    for sib in siblings:
-        # Delete physical file if exists
-        if sib.file_path:
-            try:
-                p = Path(sib.file_path)
-                if p.exists():
-                    p.unlink()
-            except Exception as e:
-                print(f"Error deleting sibling file {sib.file_path}: {e}")
-        
-        # Delete DB record
-        db.delete(sib)
-        deleted_count += 1
-
     db.commit()
     db.refresh(clip)
-    print(f"Approved clip {clip.id}, deleted {deleted_count} siblings.")
+    print(f"Approved clip {clip.id}")
     return clip
+
+
+@router.delete("/{clip_id}/reject", status_code=204)
+def reject_clip(
+    clip_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Reject a clip — permanently removes it and its physical file."""
+    clip = (
+        db.query(Clip)
+        .join(Video)
+        .filter(Clip.id == clip_id, Video.user_id == current_user.id)
+        .first()
+    )
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    # Delete the physical file to free disk space
+    if clip.file_path:
+        file_path = Path(clip.file_path)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"Deleted file: {file_path}")
+
+    db.delete(clip)  # cascades to feedbacks
+    db.commit()
+    print(f"Deleted clip {clip_id}")
 
 
 @router.post("/{clip_id}/generate", response_model=ClipResponse)
@@ -114,10 +139,8 @@ def generate_clip(
     current_user: User = Depends(get_current_user),
 ):
     """Generate the actual video file for a suggested clip."""
-    import uuid
     from services.clipper import clip_video
 
-    # 1. Get clip and video
     clip = (
         db.query(Clip)
         .join(Video)
@@ -127,35 +150,51 @@ def generate_clip(
     if not clip:
         raise HTTPException(status_code=404, detail="Clip not found")
 
-    # 2. Check if already generated
+    # Already generated and file still exists — return as-is
     if clip.file_path and Path(clip.file_path).exists():
         return clip
 
-    # 3. Get local video path
     video_path = Path(clip.video.local_path)
     if not video_path.exists():
         raise HTTPException(status_code=404, detail="Source video file not found")
 
-    # 4. Generate clip with FFmpeg
+    # Determine clip index (1-based count of clips for this video so far)
+    existing_count = (
+        db.query(Clip)
+        .filter(Clip.video_id == clip.video_id)
+        .count()
+    )
+    # Use position among all clips; find this clip's rank by created_at
+    ordered = (
+        db.query(Clip)
+        .filter(Clip.video_id == clip.video_id)
+        .order_by(Clip.created_at.asc())
+        .all()
+    )
+    clip_index = next(
+        (i + 1 for i, c in enumerate(ordered) if c.id == clip_id),
+        existing_count,
+    )
+
     try:
-        clip_name = f"clip_{uuid.uuid4().hex[:8]}"
         clip_path = clip_video(
             input_path=str(video_path),
             start_time=clip.start_time,
             end_time=clip.end_time,
-            output_name=clip_name,
+            output_name=f"clip_{uuid.uuid4().hex[:8]}",  # fallback
+            video_title=clip.video.title,
+            clip_index=clip_index,
         )
-        
-        # 5. Update DB
+
         clip.file_path = clip_path
         db.commit()
         db.refresh(clip)
-        
         return clip
 
     except Exception as e:
         print(f"Error generating clip: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate clip: {str(e)}")
+
 
 @router.get("/{clip_id}/download")
 def download_clip(
@@ -177,8 +216,9 @@ def download_clip(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Clip file missing from disk")
 
+    # Use the actual filename on disk (already named properly)
     return FileResponse(
         path=str(file_path),
-        filename=f"{clip.suggested_title or 'clip'}.mp4",
+        filename=file_path.name,
         media_type="video/mp4",
     )

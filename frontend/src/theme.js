@@ -6,6 +6,8 @@ const theme = createTheme({
             main: '#1A3A6B',
             dark: '#0F2444',
             light: '#E3EBF5',
+            50: '#EEF2F9',
+            100: '#D6E0F0',
             contrastText: '#FFFFFF',
         },
         secondary: {
@@ -87,6 +89,30 @@ const theme = createTheme({
                 root: {
                     fontWeight: 600,
                     borderRadius: 8,
+                },
+            },
+        },
+        MuiTooltip: {
+            styleOverrides: {
+                tooltip: {
+                    backgroundColor: '#0F2444',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    borderRadius: 8,
+                    padding: '6px 12px',
+                    boxShadow: '0 4px 16px rgba(15,36,68,0.25)',
+                },
+                arrow: {
+                    color: '#0F2444',
+                },
+            },
+        },
+        MuiAccordion: {
+            styleOverrides: {
+                root: {
+                    borderRadius: '12px !important',
+                    '&:before': { display: 'none' },
+                    overflow: 'hidden',
                 },
             },
         },

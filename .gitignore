@@ -14,6 +14,11 @@ backend/secrets/client_secret.json
 vids/*
 !vids/.gitkeep
 
+# Database
+*.db
+*.sqlite3
+backend/db.sqlite3
+
 # Node
 node_modules/
 dist/
@@ -25,14 +30,20 @@ frontend/.env.local
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Project Specific
+# Logs
 *.log
-*.sqlite3
-backend/db.sqlite3
+
+# Gemini / AI
+.gemini/
+.agent/
+
+# Misc
 data/
-*.db

@@ -2,52 +2,58 @@
 
 **AI-Powered Viral Video Clipper**
 
-Auto Clipper uses Google Gemini (1.5 Flash/Pro) to analyze long-form videos, identify viral moments, and automatically generate short, shareable clips. It supports importing from **Google Drive** or **Local Files**.
+Auto Clipper uses Google Gemini to analyze long-form video transcripts, identify the most viral moments, and automatically generate short, shareable clips. Import from **Google Drive** or **local files**.
 
 ## Features
 
-- **Multimodal Analysis**: Uses Gemini to understand video content, pacing, and hooks.
-- **On-Demand Transcription**: Built-in **Whisper** model (GPU-accelerated) to generate transcripts for videos that lack them.
-- **Viral Modes**: Choose between "Standard" analysis or "Viral" (Short-form/Aggressive) mode.
-- **Multi-Summary**: Generates **3 distinct clip suggestions** per video, allowing you to choose the best one.
-- **Organized Library**: Clips are automatically grouped by their source video folder for easy management.
-- **Google Drive Integration**: Browse and import videos directly from Drive.
-- **Interactive Clipper**: Review clips, watch them side-by-side with AI reasoning, and approve/reject.
-- **Auto-Cleanup**: Approving a clip automatically removes other suggestions to keep your library clean.
-- **Feedback Loop**: Request edits (e.g., "Make it shorter") and the AI will re-process the clip.
-- **Multi-Summary**: Generates **3 distinct clip suggestions** per video, allowing you to choose the best one.
-- **Organized Library**: Clips are automatically grouped by their source video folder for easy management.
-- **Google Drive Integration**: Browse and import videos directly from Drive.
-- **Interactive Clipper**: Review clips, watch them side-by-side with AI reasoning, and approve/reject.
-- **Auto-Cleanup**: Approving a clip automatically removes other suggestions to keep your library clean.
-- **Feedback Loop**: Request edits (e.g., "Make it shorter") and the AI will re-process the clip.
-
-## Documentation
-
-- **[Setup Guide](documentation/SETUP.md)**: Installation, Environment Variables, and Running the App.
-- **[API Documentation](documentation/API.md)**: Backend Endpoints and Usage.
-- **[Project Structure](documentation/PROJECT_STRUCTURE.md)**: Codebase layout and key files.
+- **AI-Powered Analysis** &mdash; Gemini identifies the 3 best clip candidates per video based on emotional impact, hooks, pacing, and shareability.
+- **Two Analysis Modes** &mdash; *Standard* (balanced) or *Viral/Short-Form* (aggressive TikTok/Reels-optimized, ~60s clips).
+- **On-Demand Transcription** &mdash; Built-in Whisper model (GPU-accelerated) for videos without transcripts.
+- **Live Progress (SSE)** &mdash; Real-time status updates during AI analysis and clip regeneration via Server-Sent Events.
+- **Clip Management** &mdash; Generate, preview, approve, reject, or request a redo with custom feedback.
+- **Smart Cleanup** &mdash; Approving a clip removes other suggestions. Rejecting or redoing a clip permanently deletes it and frees disk space.
+- **Organized Library** &mdash; Clips grouped by source video with filter tabs (All, Pending, Approved) and count badges.
+- **Google Drive Integration** &mdash; Browse, select, and import videos directly from Drive.
+- **Local File Import** &mdash; Point to a local folder and import videos + transcripts.
+- **Feedback Loop** &mdash; Provide feedback (e.g. "Make it shorter", "Find a funnier moment") and the AI generates a new suggestion.
+- **Auth System** &mdash; JWT-based registration and login with per-user data isolation.
 
 ## Quick Start
 
-1.  **Backend**:
-    ```bash
-    cd backend
-    .\venv\Scripts\activate
-    python main.py
-    ```
-2.  **Frontend**:
-    ```bash
-    cd frontend
-    npm run dev
-    ```
-3.  **Open**: `http://localhost:5173`
+1. **Backend**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   # Create backend/.env (see documentation/SETUP.md)
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   ```
+2. **Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   # Create frontend/.env with VITE_API_URL=http://localhost:8000
+   npm run dev
+   ```
+3. **Open**: [http://localhost:5173](http://localhost:5173)
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI, SQLAlchemy, Google Gemini API, FFmpeg.
-- **Frontend**: React, Vite, Material UI (MUI), Framer Motion.
-- **Database**: SQLite (default).
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.10+, FastAPI, SQLAlchemy, Pydantic |
+| AI | Google Gemini API (1.5 Flash / Pro) |
+| Video | FFmpeg (clipping), OpenAI Whisper (transcription) |
+| Frontend | React 18, Vite, Material UI (MUI), Framer Motion |
+| Database | SQLite |
+| Auth | JWT (PyJWT), bcrypt |
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Setup Guide](documentation/SETUP.md) | Installation, environment variables, running the app |
+| [API Reference](documentation/API.md) | All backend endpoints with request/response details |
+| [Project Structure](documentation/PROJECT_STRUCTURE.md) | Codebase layout and key files |
 
 ## License
 

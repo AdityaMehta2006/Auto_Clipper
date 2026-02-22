@@ -1,5 +1,5 @@
-"""Analyze route: full pipeline — download, AI analyze, FFmpeg clip."""
-import uuid
+"""Analyze route: full AI analysis pipeline — creates clip suggestions (no FFmpeg)."""
+# (FFmpeg is triggered separately via POST /api/clips/{id}/generate)
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from google.oauth2.credentials import Credentials
@@ -90,7 +90,7 @@ def analyze_video(
             db.add(clip)
             created_clips.append(clip)
             
-        video.status = "clipped" # Or "analyzed"? standard says "clipped", let's keep it to verify flow
+        video.status = "clipped"
         db.commit()
         
         for clip in created_clips:

@@ -65,6 +65,7 @@ class ClipResponse(BaseModel):
     file_path: Optional[str] = None
     video_title: Optional[str] = None
     is_approved: Optional[bool] = None
+    clip_index: Optional[int] = None     # 1-based index within the video
     created_at: datetime
 
     class Config:

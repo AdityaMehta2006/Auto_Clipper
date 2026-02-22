@@ -10,11 +10,13 @@ Each segment should target a different angle or part of the video.
 
 {duration_guidance}
 
-Consider these factors:
-- Emotional impact (surprise, humor, controversy, inspiration)
-- Shareability and relatability
-- Strong hook in the first few seconds of the segment
-- Clean start/end points (not mid-sentence)
+CRITICAL CONTENT RULES:
+- Each clip MUST be a COMPLETE, SELF-CONTAINED segment — a full story, argument, joke, or insight from start to finish.
+- NEVER cut mid-sentence or mid-thought. Start at the beginning of a statement, end after the conclusion.
+- The clip should make sense to a viewer who has ZERO context about the full video.
+- Prefer segments with a natural hook in the opening line and a satisfying conclusion.
+- Emotional impact: surprise, humor, controversy, inspiration, or a bold opinion.
+- Shareability and relatability — would someone tag a friend?
 
 Return ONLY a valid JSON list of 3 objects with this exact structure:
 [
@@ -32,20 +34,24 @@ Return ONLY a valid JSON list of 3 objects with this exact structure:
 TRANSCRIPT:
 """
 
-AGGRESSIVE_PROMPT = """You are a rigorous viral content editor for TikTok/Reels. MAXIMIZE RETENTION. Find the 3 MOST ATTENTION-GRABBING, HIGH-ENERGY segments (distinct from each other).
+AGGRESSIVE_PROMPT = """You are a rigorous viral content editor for TikTok/Reels/YouTube Shorts. MAXIMIZE RETENTION. Find the 3 MOST ATTENTION-GRABBING, HIGH-ENERGY segments (distinct from each other).
+
+{duration_guidance}
 
 MANDATORY RULES:
-1. START with a HOOK (loud, controversial, or surprising statement).
-2. NO slow build-ups. Cut the fluff.
-3. PREFER short, punchy segments (15-60s).
-4. IGNORE context if it kills the pacing.
+1. Each clip MUST be approximately 45-75 seconds (around 1 minute). This is NON-NEGOTIABLE.
+2. START with a HOOK — a loud, controversial, surprising, or emotionally charged statement.
+3. The clip MUST tell a COMPLETE story or make a COMPLETE point — never cut mid-sentence or mid-thought.
+4. The clip should make perfect sense to someone who has NEVER seen the full video.
+5. End on a strong note: a punchline, revelation, bold conclusion, or call to action.
+6. NO slow build-ups. Cut the fluff. But keep enough context so the clip is coherent.
 
 Return ONLY a valid JSON list of 3 objects:
 [
   {{
     "start_time": "HH:MM:SS",
     "end_time": "HH:MM:SS",
-    "reason": "WHY is this viral? (e.g. 'Strong hook at 0:00', 'High emotional peak')",
+    "reason": "WHY is this viral? (e.g. 'Strong hook + complete argument + bold conclusion')",
     "virality_score": 9.5,
     "suggested_title": "CLICKBAIT TITLE (All Caps)"
   }},
@@ -62,12 +68,12 @@ def _estimate_duration(transcript: str) -> str:
     word_count = len(transcript.split())
     est_minutes = word_count / 150  # ~150 words/minute spoken
 
-    if est_minutes < 10:
-        return "Target clip length: 15-60 seconds (short source video)."
-    elif est_minutes < 60:
-        return "Target clip length: 30-120 seconds (medium source video)."
+    if est_minutes < 5:
+        return "Target clip length: 30-60 seconds. The source is very short, so pick the best moments."
+    elif est_minutes < 30:
+        return "Target clip length: 45-75 seconds (~1 minute). Pick complete, self-contained moments."
     else:
-        return "Target clip length: 60-300 seconds (long-form podcast/video — pick a self-contained compelling segment)."
+        return "Target clip length: 50-90 seconds (~1 minute). This is a long video — find the most compelling self-contained segments."
 
 
 

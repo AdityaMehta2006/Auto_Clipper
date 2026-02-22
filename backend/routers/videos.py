@@ -179,7 +179,12 @@ def transcribe_video_endpoint(
 
     # 4. Transcribe
     try:
-        service = TranscriptionService(model_size="base", device="cuda", compute_type="int8")
+        from config import TRANSCRIPTION_MODEL_SIZE, TRANSCRIPTION_DEVICE, TRANSCRIPTION_COMPUTE_TYPE
+        service = TranscriptionService(
+            model_size=TRANSCRIPTION_MODEL_SIZE,
+            device=TRANSCRIPTION_DEVICE,
+            compute_type=TRANSCRIPTION_COMPUTE_TYPE,
+        )
         transcript_text = service.transcribe_video(str(target_video_path), str(video_dir))
 
         video.transcript_text = transcript_text

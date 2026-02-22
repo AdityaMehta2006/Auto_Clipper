@@ -9,5 +9,7 @@ data/clips/
 data/DataSources/
 *.db
 *.sqlite3
+db.sqlite3
 logs/
 .vscode/
+secrets/
