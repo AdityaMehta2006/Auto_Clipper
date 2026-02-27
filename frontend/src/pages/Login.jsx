@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
     Box, Card, CardContent, TextField, Button, Typography, Alert,
@@ -155,15 +155,8 @@ export default function Login() {
                             </motion.div>
                         </form>
 
-                        <Typography variant="body2" align="center" sx={{ mt: 3, color: 'text.secondary' }}>
-                            Don't have an account?{' '}
-                            <Box
-                                component={Link}
-                                to="/register"
-                                sx={{ color: 'secondary.main', fontWeight: 600, textDecoration: 'none' }}
-                            >
-                                Sign Up
-                            </Box>
+                        <Typography variant="caption" align="center" sx={{ mt: 3, display: 'block', color: 'text.disabled' }}>
+                            Need an account? Contact your administrator.
                         </Typography>
                     </CardContent>
                 </Card>

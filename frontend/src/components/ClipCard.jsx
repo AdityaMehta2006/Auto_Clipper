@@ -16,8 +16,11 @@ export default function ClipCard({ clip, onApprove, onReject, onFeedback, onGene
     const clipFilename = clip.file_path
         ? clip.file_path.replace(/\\/g, '/').split('/').pop()
         : null;
+
+    // Prevent double slashing (e.g., //clips/...) which breaks the player
+    const baseApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
     const videoUrl = clipFilename
-        ? `${import.meta.env.VITE_API_URL}/clips/${clipFilename}`
+        ? `${baseApiUrl}/clips/${clipFilename}`
         : '';
     const isSuggestion = !clip.file_path;
     const isApproved = clip.is_approved === true;
@@ -79,7 +82,8 @@ export default function ClipCard({ clip, onApprove, onReject, onFeedback, onGene
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        height: 320,
+                        aspectRatio: '16 / 9',
+                        width: '100%',
                         flexShrink: 0,
                         overflow: 'hidden',
                     }}
@@ -118,7 +122,11 @@ export default function ClipCard({ clip, onApprove, onReject, onFeedback, onGene
 
                     {/* Title + score badge */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.01em', flex: 1 }}>
+                        <Typography variant="subtitle1" sx={{
+                            fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.01em', flex: 1,
+                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden', wordBreak: 'break-word',
+                        }}>
                             {clip.suggested_title || 'Untitled Clip'}
                         </Typography>
                         <Tooltip title="Virality score (0-10)" placement="top">
@@ -163,7 +171,8 @@ export default function ClipCard({ clip, onApprove, onReject, onFeedback, onGene
                         <Typography variant="caption" sx={{
                             color: 'text.disabled', fontFamily: 'monospace',
                             bgcolor: 'action.hover', px: 1, py: 0.3, borderRadius: 1,
-                            display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            display: 'block', overflow: 'hidden', textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap', wordBreak: 'break-all', maxWidth: '100%',
                         }}>
                             {clipFilename}
                         </Typography>
@@ -190,7 +199,7 @@ export default function ClipCard({ clip, onApprove, onReject, onFeedback, onGene
                     <Divider sx={{ my: 0.5 }} />
 
                     {/* Action Buttons */}
-                    <Box sx={{ display: 'flex', gap: 1, mt: 'auto' }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 'auto' }}>
                         {isSuggestion ? (
                             /* Suggestion: Generate + Reject + Redo */
                             <>

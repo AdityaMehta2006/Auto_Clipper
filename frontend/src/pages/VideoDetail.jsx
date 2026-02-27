@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    Box, Typography, Grid, Button, Skeleton, Chip, IconButton, Divider,
+    Box, Typography, Grid, Button, Skeleton, Chip, IconButton, Divider, Alert,
 } from '@mui/material';
-import { ArrowBack, Movie, Description } from '@mui/icons-material';
+import { ArrowBack, Movie, Description, Info } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import client from '../api/client';
@@ -169,6 +169,24 @@ export default function VideoDetail() {
                         )}
                     </Box>
                 </Box>
+
+                {/* Transcript recommendation */}
+                {(!video.transcript_text && !video.drive_transcript_id) && (
+                    <Alert
+                        severity="info"
+                        icon={<Info sx={{ fontSize: 20 }} />}
+                        sx={{
+                            mb: 3, borderRadius: 2.5,
+                            bgcolor: 'rgba(26,58,107,0.06)',
+                            border: '1px solid rgba(26,58,107,0.12)',
+                            '& .MuiAlert-message': { fontSize: '0.85rem' },
+                        }}
+                    >
+                        <strong>Tip:</strong> For faster results, place a pre-made transcript file
+                        (e.g., <code>transcript.txt</code>, <code>transcript.srt</code>) alongside your video.
+                        Whisper AI transcription is available as a fallback but may be slower.
+                    </Alert>
+                )}
 
                 <Divider sx={{ mb: 4, opacity: 0.6 }} />
 

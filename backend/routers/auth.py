@@ -1,16 +1,20 @@
-"""Auth routes: register, login, Google OAuth connect."""
+"""Auth routes: login, profile, Google OAuth connect.
+
+Registration is admin-only — see routers/admin.py.
+"""
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from google_auth_oauthlib.flow import Flow
 from database import get_db
 from models import User
-from schemas import RegisterRequest, LoginRequest, TokenResponse, UserResponse
-from services.auth_service import hash_password, verify_password, create_access_token
+from schemas import LoginRequest, TokenResponse, UserResponse
+from services.auth_service import verify_password, create_access_token
 from middleware.auth import get_current_user
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
@@ -18,6 +22,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 def _build_flow():
     """Build a Google OAuth flow from env credentials."""
+    from google_auth_oauthlib.flow import Flow
     client_config = {
         "web": {
             "client_id": GOOGLE_CLIENT_ID,
@@ -34,26 +39,6 @@ def _build_flow():
 
 # ── Email/password auth ──────────────────────────────
 
-@router.post("/register", response_model=TokenResponse)
-def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    """Create a new user account and return JWT."""
-    existing = db.query(User).filter(User.email == req.email).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
-    user = User(
-        email=req.email,
-        hashed_password=hash_password(req.password),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    token = create_access_token(user.id)
-    return TokenResponse(access_token=token)
-
-
 @router.post("/login", response_model=TokenResponse)
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate and return JWT."""
@@ -63,7 +48,13 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account has been deactivated. Contact your administrator.",
+        )
     token = create_access_token(user.id)
+    logger.info(f"User logged in: {user.email}")
     return TokenResponse(access_token=token)
 
 
@@ -74,6 +65,9 @@ def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
+        display_name=current_user.display_name,
+        role=current_user.role,
+        is_active=current_user.is_active,
         created_at=current_user.created_at,
         has_google_token=current_user.google_token is not None,
         data_source=DATA_SOURCE,
@@ -85,6 +79,11 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.get("/google/connect")
 def google_connect():
     """Redirect user to Google OAuth consent screen for Drive access."""
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth is not configured",
+        )
     flow = _build_flow()
     auth_url, _ = flow.authorization_url(
         access_type="offline",
@@ -109,9 +108,7 @@ def google_callback(code: str, db: Session = Depends(get_db)):
         "scopes": credentials.scopes,
     }
 
-    # Get user info from Google to find the right user
-    # For now, store token for the most recently created user without a google_token
-    # In production, pass state param with user_id
+    # Get user info from Google
     import google.auth.transport.requests
     from google.oauth2.credentials import Credentials as GoogleCreds
     from googleapiclient.discovery import build
@@ -121,15 +118,18 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     user_info = service.userinfo().get().execute()
     google_email = user_info.get("email", "")
 
-    # Try to find user by Google email, or fall back to most recent user without token
     user = db.query(User).filter(User.email == google_email).first()
     if not user:
-        # Find any user who doesn't have a Google token yet
-        user = db.query(User).filter(User.google_token.is_(None)).order_by(User.created_at.desc()).first()
+        user = (
+            db.query(User)
+            .filter(User.google_token.is_(None))
+            .order_by(User.created_at.desc())
+            .first()
+        )
 
     if user:
         user.google_token = token_data
         db.commit()
+        logger.info(f"Google token stored for user: {user.email}")
 
-    # Redirect back to frontend
     return RedirectResponse(url="http://localhost:5173/?google=connected")

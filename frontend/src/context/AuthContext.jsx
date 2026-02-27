@@ -32,21 +32,15 @@ export function AuthProvider({ children }) {
         return me.data;
     };
 
-    const register = async (email, password) => {
-        const res = await client.post('/api/auth/register', { email, password });
-        localStorage.setItem('token', res.data.access_token);
-        const me = await client.get('/api/auth/me');
-        setUser(me.data);
-        return me.data;
-    };
-
     const logout = () => {
         localStorage.removeItem('token');
         setUser(null);
     };
 
+    const isAdmin = user?.role === 'admin';
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
             {children}
         </AuthContext.Provider>
     );

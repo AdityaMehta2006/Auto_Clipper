@@ -1,11 +1,15 @@
-"""Video routes: import from Drive, list, detail."""
+"""Video routes: import from Drive, list, detail, transcribe."""
+import logging
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User, Video
 from schemas import VideoImportRequest, VideoResponse, VideoDetailResponse, ClipResponse
 from middleware.auth import get_current_user
+from services.activity_service import log_activity
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 
 
@@ -27,28 +31,26 @@ def import_video(
     # Auto-detect transcript if not provided
     transcript_id = req.drive_transcript_id
     transcript_text = None
-    
+
     if not transcript_id and req.drive_folder_id:
-        # Check if using LocalFileSource (drive_folder_id usually matches folder name)
         from config import LOCAL_VIDEO_PATH
         folder_path = LOCAL_VIDEO_PATH / req.drive_folder_id
         if folder_path.exists():
-            # Known transcript extensions
             trans_exts = [".json", ".srt", ".vtt", ".txt"]
             for f in folder_path.iterdir():
-                # Check for "transcript" or exact match in extensions
-                if f.stem.lower() == "transcript" or f.name.lower() in ["transcript.json", "transcript.srt", "transcript.vtt", "transcript.txt"]:
+                if f.stem.lower() == "transcript" or f.name.lower() in [
+                    "transcript.json", "transcript.srt", "transcript.vtt", "transcript.txt"
+                ]:
                     if f.suffix.lower() in trans_exts:
-                         transcript_id = f"{req.drive_folder_id}/{f.name}"
-                         # Optimization: Read content immediately
-                         try:
-                             transcript_text = f.read_text(encoding="utf-8")
-                         except Exception:
-                             try:
-                                 transcript_text = f.read_text(encoding="latin-1")
-                             except Exception:
-                                 pass
-                         break
+                        transcript_id = f"{req.drive_folder_id}/{f.name}"
+                        try:
+                            transcript_text = f.read_text(encoding="utf-8")
+                        except Exception:
+                            try:
+                                transcript_text = f.read_text(encoding="latin-1")
+                            except Exception:
+                                pass
+                        break
 
     video = Video(
         user_id=current_user.id,
@@ -62,10 +64,17 @@ def import_video(
     db.add(video)
     db.commit()
     db.refresh(video)
+
+    log_activity(db, current_user.id, "video_imported", "video", video.id, {
+        "title": video.title,
+        "has_transcript": transcript_text is not None,
+    })
+    logger.info(f"Video imported: {video.title} by {current_user.email}")
+
     return video
 
 
-@router.get("/", response_model=list[VideoResponse])
+@router.get("", response_model=list[VideoResponse])
 def list_videos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -94,7 +103,6 @@ def get_video(
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
-
     return VideoDetailResponse(
         id=video.id,
         title=video.title,
@@ -113,6 +121,14 @@ def transcribe_video_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     """Generate transcript for a video using local Whisper model."""
+    from config import TRANSCRIPTION_ENABLED
+
+    if not TRANSCRIPTION_ENABLED:
+        raise HTTPException(
+            status_code=501,
+            detail="Local transcription is disabled. Please provide a transcript file alongside your video.",
+        )
+
     video = db.query(Video).filter(
         Video.id == video_id,
         Video.user_id == current_user.id,
@@ -121,14 +137,12 @@ def transcribe_video_endpoint(
         raise HTTPException(status_code=404, detail="Video not found")
 
     import shutil
-    import os
-    from pathlib import Path
     from config import DATA_SOURCES_DIR, DOWNLOADS_DIR, LOCAL_VIDEO_PATH
-    from services.transcription_service import TranscriptionService
 
     # 1. Prepare DataSources folder
-    # Sanitize title for folder name
-    safe_title = "".join([c for c in video.title if c.isalpha() or c.isdigit() or c in " ._-"]).strip()
+    safe_title = "".join(
+        [c for c in video.title if c.isalpha() or c.isdigit() or c in " ._-"]
+    ).strip()
     video_dir = DATA_SOURCES_DIR / safe_title
     video_dir.mkdir(parents=True, exist_ok=True)
 
@@ -136,42 +150,39 @@ def transcribe_video_endpoint(
 
     # 2. Locate Source Video
     source_path = None
-    
-    # Check if we have a local path already
+
     if video.local_path and Path(video.local_path).exists():
         source_path = Path(video.local_path)
-    # Check downloads dir
     elif (DOWNLOADS_DIR / f"{video.title}.mp4").exists():
         source_path = DOWNLOADS_DIR / f"{video.title}.mp4"
-    # Check "vids" dir (LOCAL_VIDEO_PATH)
     elif (LOCAL_VIDEO_PATH / f"{video.title}.mp4").exists():
         source_path = LOCAL_VIDEO_PATH / f"{video.title}.mp4"
-    # Check if drive_video_id works (especially for LocalFileSource)
     elif video.drive_video_id:
-        # Try resolving relative path from LOCAL_VIDEO_PATH
         potential_path = LOCAL_VIDEO_PATH / video.drive_video_id
         if potential_path.exists():
             source_path = potential_path
-        elif (LOCAL_VIDEO_PATH / video.drive_folder_id / video.drive_video_id.split("/")[-1]).exists():
-             source_path = LOCAL_VIDEO_PATH / video.drive_folder_id / video.drive_video_id.split("/")[-1]
-    
-    # NEW: Try finding ANY video file in the folder if title matching fails
+        elif video.drive_folder_id:
+            alt_path = LOCAL_VIDEO_PATH / video.drive_folder_id / video.drive_video_id.split("/")[-1]
+            if alt_path.exists():
+                source_path = alt_path
+
+    # Try finding ANY video file in the folder
     if not source_path and video.drive_folder_id:
         folder_path = LOCAL_VIDEO_PATH / video.drive_folder_id
         if folder_path.exists():
-             video_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts"}
-             for f in folder_path.iterdir():
-                 if f.suffix.lower() in video_exts:
-                     source_path = f
-                     break
-    
-    if not source_path:
-        # Fallback: try to find any mp4 with the title in common dirs
-        # For now, if we can't find it, we can't transcribe.
-        # Future: Download from Drive if drive_video_id exists.
-        raise HTTPException(status_code=400, detail="Video file not found locally. Please ensure the video is downloaded.")
+            video_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts"}
+            for f in folder_path.iterdir():
+                if f.suffix.lower() in video_exts:
+                    source_path = f
+                    break
 
-    # 3. Copy/Move video to DataSources if not already there
+    if not source_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Video file not found locally. Please ensure the video is downloaded.",
+        )
+
+    # 3. Copy video to DataSources if not already there
     if source_path.resolve() != target_video_path.resolve():
         shutil.copy2(source_path, target_video_path)
         video.local_path = str(target_video_path)
@@ -180,6 +191,8 @@ def transcribe_video_endpoint(
     # 4. Transcribe
     try:
         from config import TRANSCRIPTION_MODEL_SIZE, TRANSCRIPTION_DEVICE, TRANSCRIPTION_COMPUTE_TYPE
+        from services.transcription_service import TranscriptionService
+
         service = TranscriptionService(
             model_size=TRANSCRIPTION_MODEL_SIZE,
             device=TRANSCRIPTION_DEVICE,
@@ -191,6 +204,9 @@ def transcribe_video_endpoint(
         db.commit()
         db.refresh(video)
 
+        log_activity(db, current_user.id, "video_transcribed", "video", video.id)
+        logger.info(f"Video transcribed: {video.title}")
+
         return VideoDetailResponse(
             id=video.id,
             title=video.title,
@@ -201,5 +217,11 @@ def transcribe_video_endpoint(
             clips=[ClipResponse.model_validate(c) for c in video.clips],
         )
 
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Transcription dependencies not installed. Install faster-whisper to enable.",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+        logger.error(f"Transcription failed for video {video.id}: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed. Check server logs.")

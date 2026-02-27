@@ -2,11 +2,11 @@
 
 ## Prerequisites
 
-- **Python 3.10+** (added to PATH)
+- **Python 3.10+** (Added to PATH)
 - **Node.js 18+** and npm
-- **FFmpeg** (installed and added to PATH)
-- **Google Gemini API Key** (from [Google AI Studio](https://aistudio.google.com/))
-- **Google Cloud Project** (optional, for Google Drive integration)
+- **FFmpeg** (Installed and added to PATH)
+- **Google Gemini API Key** (From [Google AI Studio](https://aistudio.google.com/))
+- **Supabase Project** (From [Supabase](https://supabase.com/))
 
 ## 1. Backend Setup
 
@@ -16,7 +16,7 @@ python -m venv venv
 ```
 
 Activate the virtual environment:
-- **Windows**: `.\\venv\\Scripts\\activate`
+- **Windows**: `.\venv\Scripts\activate`
 - **Mac/Linux**: `source venv/bin/activate`
 
 Install dependencies:
@@ -26,26 +26,43 @@ pip install -r requirements.txt
 
 ### Environment Variables
 
-Create `backend/.env`:
+Duplicate `.env.example` to `.env` and fill in your credentials:
+
 ```env
-# Required
-GEMINI_API_KEY=your_gemini_api_key
-SECRET_KEY=any_random_string_for_jwt
+# ── Server ────────────────────────────────────────────
+ENVIRONMENT=development
+CORS_ORIGINS=http://localhost:5173
 
-# Gemini model (default: gemini-1.5-flash)
-GEMINI_MODEL=gemini-1.5-flash
+# ── Database (Supabase Postgres) ──────────────────────
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+DATABASE_URL=postgresql://postgres.xxx:password@aws.pooler.supabase.com:6543/postgres
 
-# Local video import path
-LOCAL_VIDEO_PATH=D:\\Auto_Clipper\\vids
+# ── Auth ──────────────────────────────────────────────
+JWT_SECRET=super_secret_key
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=1440
+RATE_LIMIT_AUTH=5/minute
 
-# Storage directories (defaults are fine)
-DATA_SOURCES_DIR=./data/DataSources
-CLIPS_DIR=./data/clips
-
-# Google Drive (optional)
+# ── Cloud AI & OAuth ──────────────────────────────────
+GEMINI_API_KEY=your_gemini_key
+GEMINI_MODEL=gemini-2.5-flash
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
+
+# ── Transcription & Paths ─────────────────────────────
+TRANSCRIPTION_ENABLED=true
+LOCAL_VIDEO_PATH=D:\Auto_Clipper\vids
 ```
+
+### Database Initialization & Admin Seeding
+
+Auto Clipper uses a strict admin/sub-user role system. You must seed the initial admin account before logging in:
+
+```bash
+python seed_admin.py admin@yourdomain.com your_secure_password "Admin Name"
+```
+*(This command automatically creates the 5 required Supabase tables: users, videos, clips, feedback, activity_logs).*
 
 ## 2. Frontend Setup
 
@@ -66,7 +83,7 @@ Both servers must run simultaneously in separate terminals.
 **Backend:**
 ```bash
 cd backend
-# Activate venv first
+# Ensure venv is active
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -76,15 +93,9 @@ cd frontend
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser and log in with the admin credentials you created in step 1.
 
-## 4. Utility Scripts
+## 4. Operational Notes
 
-| Script | Description |
-|--------|-------------|
-| `reset_db_keep_users.py` | Wipe all videos, clips, and files. Preserves user accounts. |
-
-```bash
-cd backend
-python reset_db_keep_users.py
-```
+- **Database Pooling:** `database.py` utilizes SQLAlchemy connection pooling (`pool_size=5`, `pool_pre_ping=True`) optimized for the Supabase Postgres connection string (port 6543).
+- **Transcription (Optional):** If `TRANSCRIPTION_ENABLED=true` in `.env`, the app requires `faster-whisper`. If it fails to load, ensure C++ build tools are installed or pass a pre-made `.srt`/`.txt` file alongside your video.

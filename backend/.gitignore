@@ -1,15 +1,26 @@
+# Core Development
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
 .env
+
+# OS Files
 .DS_Store
+
+# Data Directories (Ignored so users don't commit large video files)
 data/downloads/
 data/clips/
 data/DataSources/
+
+# SQLite (Local Dev Only - Production uses Supabase)
 *.db
 *.sqlite3
 db.sqlite3
+
+# Logs and IDE
 logs/
 .vscode/
+
+# Secrets (OAuth tokens, etc)
 secrets/

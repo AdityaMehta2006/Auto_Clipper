@@ -1,0 +1,50 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autoclipper_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # =========================================================================
+      # CUSTOM PATH BINDING / WINDOWS FILE SHARING REQUIREMENTS
+      # =========================================================================
+      # If your videos are on a secondary drive (like D:\, E:\, etc.), Docker Desktop 
+      # MUST be granted explicitly permission to read it.
+      #
+      # FIX FOR "FOLDER NOT FOUND":
+      # 1. Open Docker Desktop -> Settings (Gear Icon) -> Resources -> File sharing
+      # 2. Add your drive (e.g., D:\) or exact folder (D:\Auto_Clipper\vids)
+      # 3. Apply & Restart Docker Desktop.
+      # =========================================================================
+      - ./backend/data:/app/data
+      # Change the left side to wherever your raw videos live on your computer disk:
+      - D:/Auto_Clipper/vids:/app/vids
+    env_file:
+      - ./backend/.env
+    environment:
+      # Mapped from the volume mounts above. Do not change these unless you change the right-side of the mounts above.
+      - LOCAL_VIDEO_PATH=/app/vids
+      - DATA_SOURCES_DIR=/app/data/DataSources
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: autoclipper_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80" # Map host 5173 to container's internal Nginx port 80
+    depends_on:
+      - backend
+
+  # Expose the app to the internet securely and for free via Cloudflare Quick Tunnels
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: autoclipper_tunnel
+    restart: unless-stopped
+    command: tunnel --url http://frontend:80
+    depends_on:
+      - frontend

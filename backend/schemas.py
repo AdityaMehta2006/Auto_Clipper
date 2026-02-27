@@ -2,13 +2,13 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 # ── Auth ───────────────────────────────────────────────
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6)
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -21,12 +21,73 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: str
+    display_name: Optional[str] = None
+    role: str = "user"
+    is_active: bool = True
     created_at: datetime
     has_google_token: bool = False
     data_source: str = "google_drive"
 
     class Config:
         from_attributes = True
+
+
+# ── Admin — User Management ───────────────────────────
+class AdminCreateUserRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    display_name: Optional[str] = None
+    role: str = Field(default="user", pattern="^(admin|user)$")
+
+class AdminUpdateUserRequest(BaseModel):
+    display_name: Optional[str] = None
+    role: Optional[str] = Field(default=None, pattern="^(admin|user)$")
+    is_active: Optional[bool] = None
+
+class UserListResponse(BaseModel):
+    id: str
+    email: str
+    display_name: Optional[str] = None
+    role: str
+    is_active: bool
+    created_at: datetime
+    video_count: int = 0
+    clip_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+# ── Admin — Stats / Metrics ───────────────────────────
+class DailyClipStat(BaseModel):
+    date: str
+    count: int
+
+class ViralityBucket(BaseModel):
+    range: str
+    count: int
+
+class UserActivityStat(BaseModel):
+    user_email: str
+    display_name: Optional[str] = None
+    videos: int = 0
+    clips: int = 0
+    approved: int = 0
+    feedback: int = 0
+
+class ActionBreakdown(BaseModel):
+    action: str
+    count: int
+
+class StatsOverview(BaseModel):
+    total_users: int = 0
+    total_videos: int = 0
+    total_clips: int = 0
+    approved_clips: int = 0
+    pending_clips: int = 0
+    rejected_clips: int = 0
+    total_feedback: int = 0
+    approval_rate: float = 0.0
 
 
 # ── Videos ─────────────────────────────────────────────

@@ -1,59 +1,80 @@
 # Auto Clipper
 
-**AI-Powered Viral Video Clipper**
+**AI-Powered Viral Video Clipper (Enterprise Architecture)**
 
-Auto Clipper uses Google Gemini to analyze long-form video transcripts, identify the most viral moments, and automatically generate short, shareable clips. Import from **Google Drive** or **local files**.
+Auto Clipper uses Google Gemini 2.5 Flash to semantically analyze long-form video transcripts, identify the most viral moments, and autonomously generate short, shareable clips using zero-copy FFmpeg fast-seek.
 
-## Features
+## 🌟 Key Features
 
-- **AI-Powered Analysis** &mdash; Gemini identifies the 3 best clip candidates per video based on emotional impact, hooks, pacing, and shareability.
-- **Two Analysis Modes** &mdash; *Standard* (balanced) or *Viral/Short-Form* (aggressive TikTok/Reels-optimized, ~60s clips).
-- **On-Demand Transcription** &mdash; Built-in Whisper model (GPU-accelerated) for videos without transcripts.
-- **Live Progress (SSE)** &mdash; Real-time status updates during AI analysis and clip regeneration via Server-Sent Events.
-- **Clip Management** &mdash; Generate, preview, approve, reject, or request a redo with custom feedback.
-- **Smart Cleanup** &mdash; Approving a clip removes other suggestions. Rejecting or redoing a clip permanently deletes it and frees disk space.
-- **Organized Library** &mdash; Clips grouped by source video with filter tabs (All, Pending, Approved) and count badges.
-- **Google Drive Integration** &mdash; Browse, select, and import videos directly from Drive.
-- **Local File Import** &mdash; Point to a local folder and import videos + transcripts.
-- **Feedback Loop** &mdash; Provide feedback (e.g. "Make it shorter", "Find a funnier moment") and the AI generates a new suggestion.
-- **Auth System** &mdash; JWT-based registration and login with per-user data isolation.
+- **Semantic AI Analysis** &mdash; Gemini identifies optimal clip candidates based on emotional resonance, hook potential, and pacing, completely bypassing the need for computationally heavy visual processing.
+- **Microsecond Clipping** &mdash; Uses FFmpeg Fast Seek (`-ss` before `-i`) to jump directly to keyframes, extracting clips in milliseconds regardless of source video length.
+- **Supabase Postgres Cluster** &mdash; Highly available data storage with connection pooling (`pool_pre_ping`) to handle concurrent asynchronous clipping jobs.
+- **Role-Based Access Control (RBAC)** &mdash; JWT-secured admin and sub-user hierarchies. Users are invited/managed exclusively by administrators via the dashboard.
+- **Live Server-Sent Events (SSE)** &mdash; Real-time status updates stream directly to the React frontend during long-running AI inference tasks.
+- **Advanced Metrics Dashboard** &mdash; Powered by Recharts. Features multi-metric radar charts, gradient area charts, and treemaps for tracking virality scores, clip generation velocity, and user activity.
+- **Optional GPU Transcription** &mdash; Built-in `faster-whisper` integration for videos lacking transcripts (quantized for 4x speedup), with zero-latency fallback to sidecar `.srt` or `.txt` files.
 
-## Quick Start
+## 🚀 Quick Start (Local Deployment)
 
-1. **Backend**:
+*Local deployment is recommended to avoid bandwidth costs when processing massive raw video files.*
+
+1. **Backend (FastAPI)**:
    ```bash
    cd backend
    pip install -r requirements.txt
-   # Create backend/.env (see documentation/SETUP.md)
+   
+   # Duplicate .env.example to .env and add your Supabase credentials
+   
+   # Seed your initial Admin account
+   python seed_admin.py admin@yourdomain.com your_secure_password "Admin Name"
+   
+   # Start the server with pooling enabled
    uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
-2. **Frontend**:
+2. **Frontend (React/Vite)**:
    ```bash
    cd frontend
    npm install
+   
    # Create frontend/.env with VITE_API_URL=http://localhost:8000
    npm run dev
    ```
-3. **Open**: [http://localhost:5173](http://localhost:5173)
+3. **Open**: [http://localhost:5173](http://localhost:5173) and login with your seeded admin credentials.
 
-## Tech Stack
+## 🐳 Docker Deployment (Recommended)
+
+To deploy the entire stack (Backend, Frontend, and secure Cloudflare Tunnel) with one command, use the included Docker Compose configuration.
+
+1. **Configure Storage:** Follow the instructions inside `docker-compose.yml` to give Docker Desktop File Sharing permissions for your raw video folder on Windows (e.g. `D:\Auto_Clipper\vids`).
+2. **Start the Stack:**
+   ```bash
+   docker-compose up -d --build
+   ```
+3. **Get your Public URL:**
+   ```bash
+   docker logs autoclipper_tunnel | findstr trycloudflare
+   ```
+   *Copy the secure `trycloudflare.com` URL to access your app from anywhere over the internet.*
+
+## 🛠 Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.10+, FastAPI, SQLAlchemy, Pydantic |
-| AI | Google Gemini API (1.5 Flash / Pro) |
-| Video | FFmpeg (clipping), OpenAI Whisper (transcription) |
-| Frontend | React 18, Vite, Material UI (MUI), Framer Motion |
-| Database | SQLite |
-| Auth | JWT (PyJWT), bcrypt |
+| **Core Architecture** | Asynchronous Python 3.10+, FastAPI |
+| **Data Persistence** | Supabase (PostgreSQL), SQLAlchemy ORM |
+| **AI Inference** | Google Gemini 2.5 Flash (Semantic Analysis) |
+| **Media Processing** | FFmpeg (Zero-copy clipping), `faster-whisper` (CTranslate2) |
+| **Frontend Runtime** | React 18, Vite, Framer Motion (Transitions) |
+| **Analytics Engine** | Recharts (SVG hardware-accelerated rendering) |
+| **Security** | JWT (PyJWT), bcrypt, Global Exception Sanitization |
 
-## Documentation
+## 📚 Documentation
 
-| Guide | Description |
+| Document | Description |
 |-------|-------------|
-| [Setup Guide](documentation/SETUP.md) | Installation, environment variables, running the app |
-| [API Reference](documentation/API.md) | All backend endpoints with request/response details |
-| [Project Structure](documentation/PROJECT_STRUCTURE.md) | Codebase layout and key files |
+| [Architecture & Performance](ARCHITECTURE.md) | Deep dive into sub-linear clipping, AI rationale, and deployment scaling strategies (Local vs. Railway). |
+| [Setup Guide](documentation/SETUP.md) | Detailed installation and Supabase configuration. |
+| [API Reference](documentation/API.md) | REST API endpoints, JWT structure, and SSE implementation. |
 
 ## License
 

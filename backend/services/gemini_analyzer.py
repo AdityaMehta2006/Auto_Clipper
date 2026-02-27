@@ -5,27 +5,27 @@ from config import GEMINI_API_KEY, GEMINI_MODEL
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-BASE_PROMPT = """You are a viral content expert. Analyze the following video transcript and identify the 3 BEST DISTINCT segments that would make viral clips.
-Each segment should target a different angle or part of the video.
+BASE_PROMPT = """You are a viral educational content expert. Analyze the following video transcript and identify the 3 BEST DISTINCT segments that would make viral educational clips (e.g., for YouTube Shorts, TikTok, or Reels).
+Each segment should target a different core lesson, story, or insight.
 
 {duration_guidance}
 
 CRITICAL CONTENT RULES:
-- Each clip MUST be a COMPLETE, SELF-CONTAINED segment — a full story, argument, joke, or insight from start to finish.
-- NEVER cut mid-sentence or mid-thought. Start at the beginning of a statement, end after the conclusion.
-- The clip should make sense to a viewer who has ZERO context about the full video.
-- Prefer segments with a natural hook in the opening line and a satisfying conclusion.
-- Emotional impact: surprise, humor, controversy, inspiration, or a bold opinion.
-- Shareability and relatability — would someone tag a friend?
+- EDUCATIONAL FOCUS: Look for clear explanations, profound insights, or engaging stories that teach the audience something valuable.
+- STRICT BOUNDARIES: Each clip MUST be a COMPLETE, SELF-CONTAINED thought. 
+- NEVER cut off a conversation mid-thought or mid-sentence. Start EXACTLY when the speaker introduces the topic, and end EXACTLY after they finish their final concluding thought on that topic.
+- The clip should make total sense to a viewer who has ZERO context about the full video.
+- Prefer segments with a natural instructional hook ("Here is why...", "The secret to...") and a satisfying, actionable conclusion.
+- Shareability — would someone send this to a friend to teach them something?
 
 Return ONLY a valid JSON list of 3 objects with this exact structure:
 [
   {{
     "start_time": "HH:MM:SS",
     "end_time": "HH:MM:SS",
-    "reason": "Detailed explanation of why this segment was chosen...",
+    "reason": "Detailed explanation of why this segment is highly educational and viral...",
     "virality_score": 8.5,
-    "suggested_title": "A catchy title for the clip"
+    "suggested_title": "A catchy educational title for the clip"
   }},
   {{ ... }},
   {{ ... }}
@@ -34,26 +34,25 @@ Return ONLY a valid JSON list of 3 objects with this exact structure:
 TRANSCRIPT:
 """
 
-AGGRESSIVE_PROMPT = """You are a rigorous viral content editor for TikTok/Reels/YouTube Shorts. MAXIMIZE RETENTION. Find the 3 MOST ATTENTION-GRABBING, HIGH-ENERGY segments (distinct from each other).
+AGGRESSIVE_PROMPT = """You are a rigorous viral educational content editor for TikTok/Reels/YouTube Shorts. MAXIMIZE RETENTION AND VALUE. Find the 3 MOST ATTENTION-GRABBING, HIGH-VALUE educational segments (distinct from each other).
 
 {duration_guidance}
 
 MANDATORY RULES:
-1. Each clip MUST be approximately 45-75 seconds (around 1 minute). This is NON-NEGOTIABLE.
-2. START with a HOOK — a loud, controversial, surprising, or emotionally charged statement.
-3. The clip MUST tell a COMPLETE story or make a COMPLETE point — never cut mid-sentence or mid-thought.
-4. The clip should make perfect sense to someone who has NEVER seen the full video.
-5. End on a strong note: a punchline, revelation, bold conclusion, or call to action.
-6. NO slow build-ups. Cut the fluff. But keep enough context so the clip is coherent.
+1. START with a HOOK — a surprising fact, a common misconception, or a bold educational statement.
+2. STRICT BOUNDARIES: The clip MUST tell a COMPLETE story or make a COMPLETE point. You MUST NEVER cut mid-sentence, mid-conversation, or mid-thought. Start at the exact context-setting sentence and end right after the concluding takeaway.
+3. The clip should make perfect sense to someone who has NEVER seen the full video.
+4. End on a strong note: a clear takeaway, a paradigm shift, or an actionable piece of advice.
+5. NO slow build-ups. Cut the absolute fluff, but KEEP the context so the educational value is obvious.
 
 Return ONLY a valid JSON list of 3 objects:
 [
   {{
     "start_time": "HH:MM:SS",
     "end_time": "HH:MM:SS",
-    "reason": "WHY is this viral? (e.g. 'Strong hook + complete argument + bold conclusion')",
+    "reason": "WHY is this viral? (e.g. 'Strong educational hook + clear explanation + actionable takeaway')",
     "virality_score": 9.5,
-    "suggested_title": "CLICKBAIT TITLE (All Caps)"
+    "suggested_title": "CLICKBAIT EDUCATIONAL TITLE (All Caps)"
   }},
   {{ ... }},
   {{ ... }}
@@ -64,16 +63,8 @@ TRANSCRIPT:
 
 
 def _estimate_duration(transcript: str) -> str:
-    """Choose clip length guidance based on estimated transcript duration."""
-    word_count = len(transcript.split())
-    est_minutes = word_count / 150  # ~150 words/minute spoken
-
-    if est_minutes < 5:
-        return "Target clip length: 30-60 seconds. The source is very short, so pick the best moments."
-    elif est_minutes < 30:
-        return "Target clip length: 45-75 seconds (~1 minute). Pick complete, self-contained moments."
-    else:
-        return "Target clip length: 50-90 seconds (~1 minute). This is a long video — find the most compelling self-contained segments."
+    """Choose clip length guidance. Specifically optimized for 50s-80s viral educational format."""
+    return "TARGET CLIP LENGTH: Strictly between 50 and 80 seconds (around 1 minute). This is the optimal length for viral educational shorts. Find the most compelling self-contained segments that fit naturally in this window without cutting off thoughts."
 
 
 

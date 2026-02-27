@@ -12,17 +12,12 @@ import {
     FolderOpen as FolderIcon,
     MovieFilter as ClipsIcon,
     Logout as LogoutIcon,
+    AdminPanelSettings,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
-const navItems = [
-    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
-    { label: 'Files', path: '/files', icon: <FolderIcon /> },
-    { label: 'Clips', path: '/clips', icon: <ClipsIcon /> },
-];
-
 export default function Navbar() {
-    const { user, logout } = useAuth();
+    const { user, logout, isAdmin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const theme = useTheme();
@@ -30,6 +25,13 @@ export default function Navbar() {
     const [drawerOpen, setDrawerOpen] = useState(false);
 
     if (!user) return null;
+
+    const navItems = [
+        { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+        { label: 'Files', path: '/files', icon: <FolderIcon /> },
+        { label: 'Clips', path: '/clips', icon: <ClipsIcon /> },
+        ...(isAdmin ? [{ label: 'Admin', path: '/admin', icon: <AdminPanelSettings /> }] : []),
+    ];
 
     const handleLogout = () => {
         logout();
@@ -75,7 +77,9 @@ export default function Navbar() {
                     {!isMobile && (
                         <Box sx={{ display: 'flex', gap: 0.5 }}>
                             {navItems.map((item) => {
-                                const isActive = location.pathname === item.path;
+                                const isActive = item.path === '/admin'
+                                    ? location.pathname.startsWith('/admin')
+                                    : location.pathname === item.path;
                                 return (
                                     <Box key={item.path} sx={{ position: 'relative' }}>
                                         <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}>
@@ -96,7 +100,6 @@ export default function Navbar() {
                                                 {item.label}
                                             </Button>
                                         </motion.div>
-                                        {/* Active indicator bar */}
                                         {isActive && (
                                             <motion.div
                                                 layoutId="nav-indicator"
@@ -122,7 +125,7 @@ export default function Navbar() {
                         <Avatar
                             sx={{
                                 width: 34, height: 34,
-                                bgcolor: 'secondary.main',
+                                bgcolor: isAdmin ? 'secondary.main' : 'primary.main',
                                 fontSize: '0.85rem',
                                 fontWeight: 700,
                                 border: '2px solid rgba(255,255,255,0.2)',
@@ -131,9 +134,16 @@ export default function Navbar() {
                             {user.email?.[0]?.toUpperCase()}
                         </Avatar>
                         {!isMobile && (
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>
-                                {user.email}
-                            </Typography>
+                            <Box>
+                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem', lineHeight: 1.2, fontWeight: 500 }}>
+                                    {user.display_name || user.email}
+                                </Typography>
+                                {isAdmin && (
+                                    <Typography variant="caption" sx={{ color: 'secondary.main', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                        Admin
+                                    </Typography>
+                                )}
+                            </Box>
                         )}
                         <motion.div whileTap={{ scale: 0.95 }}>
                             <IconButton size="small" onClick={handleLogout} sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#fff' } }}>
@@ -155,7 +165,9 @@ export default function Navbar() {
                     <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
                     <List sx={{ px: 2, pt: 2 }}>
                         {navItems.map((item) => {
-                            const isActive = location.pathname === item.path;
+                            const isActive = item.path === '/admin'
+                                ? location.pathname.startsWith('/admin')
+                                : location.pathname === item.path;
                             return (
                                 <ListItemButton
                                     key={item.path}
@@ -177,12 +189,7 @@ export default function Navbar() {
                                         transition: 'all 0.2s',
                                     }}
                                 >
-                                    <ListItemIcon
-                                        sx={{
-                                            color: 'inherit',
-                                            minWidth: 42,
-                                        }}
-                                    >
+                                    <ListItemIcon sx={{ color: 'inherit', minWidth: 42 }}>
                                         {item.icon}
                                     </ListItemIcon>
                                     <ListItemText

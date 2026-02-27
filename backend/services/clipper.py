@@ -48,12 +48,13 @@ def clip_video(
 
     cmd = [
         FFMPEG_PATH,
+        "-ss", start_time,                 # Output seeking -> Input seeking (Fast seek)
+        "-to", end_time,                   # Cut at the exact end time
         "-i", input_path,
-        "-ss", start_time,
-        "-to", end_time,
-        "-c", "copy",                    # Stream copy, no re-encoding
-        "-avoid_negative_ts", "make_zero",
-        "-y",                            # Overwrite if exists
+        "-c", "copy",                      # Stream copy, no re-encoding
+        "-map", "0",                       # Map all audio/video streams natively
+        "-avoid_negative_ts", "make_zero", # Re-baseline timestamps so players don't glitch
+        "-y",                              # Overwrite if exists
         output_path,
     ]
 

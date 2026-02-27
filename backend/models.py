@@ -23,10 +23,14 @@ class User(Base):
     id = Column(String, primary_key=True, default=_uuid)
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
+    display_name = Column(String, nullable=True)
+    role = Column(String, nullable=False, default="user")  # "admin" or "user"
+    is_active = Column(Boolean, nullable=False, default=True)
     google_token = Column(JSON, nullable=True)  # OAuth token blob
     created_at = Column(DateTime, default=_now)
 
     videos = relationship("Video", back_populates="user")
+    activity_logs = relationship("ActivityLog", back_populates="user")
 
 
 # ── Videos ─────────────────────────────────────────────
@@ -88,3 +92,21 @@ class Feedback(Base):
     created_at = Column(DateTime, default=_now)
 
     clip = relationship("Clip", back_populates="feedbacks")
+
+
+# ── Activity Logs (for metrics/analytics) ──────────────
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    action = Column(String, nullable=False, index=True)
+    # Actions: video_imported, video_transcribed, clip_generated,
+    #          clip_approved, clip_rejected, feedback_submitted,
+    #          user_created, user_deactivated
+    entity_type = Column(String, nullable=True)   # "video", "clip", "feedback", "user"
+    entity_id = Column(String, nullable=True)
+    metadata_json = Column(JSON, nullable=True)    # Extra context
+    created_at = Column(DateTime, default=_now, index=True)
+
+    user = relationship("User", back_populates="activity_logs")
