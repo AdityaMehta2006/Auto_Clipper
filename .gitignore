@@ -47,5 +47,4 @@ desktop.ini
 
 # Misc
 data/
-backend/seed_admin.py
 backend/flush_db.py
