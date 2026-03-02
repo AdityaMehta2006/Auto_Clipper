@@ -8,7 +8,7 @@ from database import get_db
 from models import User, Clip, Video, Feedback
 from schemas import FeedbackRequest, ClipResponse
 from middleware.auth import get_current_user
-from services.gemini_analyzer import analyze_transcript
+from services.ai_provider import analyze_transcript
 
 router = APIRouter(prefix="/api/clips", tags=["feedback"])
 

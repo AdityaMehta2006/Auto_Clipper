@@ -44,9 +44,12 @@ GOOGLE_REDIRECT_URI = os.getenv(
     "http://localhost:8000/api/auth/google/callback",
 )
 
-# ── Gemini AI ──────────────────────────────────────────
+# ── AI Provider ────────────────────────────────────────
+AI_PROVIDER = os.getenv("AI_PROVIDER", "")            # "gemini", "openai", or "" (auto-detect)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # ── Data Source ────────────────────────────────────────
 DATA_SOURCE = os.getenv("DATA_SOURCE", "google_drive")
@@ -76,8 +79,18 @@ def validate_config():
     ):
         errors.append("JWT_SECRET must be changed for production!")
 
-    if not GEMINI_API_KEY:
-        warnings.append("GEMINI_API_KEY is not set — AI analysis will fail.")
+    # Check the correct API key based on provider
+    provider = AI_PROVIDER.strip().lower()
+    if provider == "openai":
+        if not OPENAI_API_KEY:
+            warnings.append("AI_PROVIDER is 'openai' but OPENAI_API_KEY is not set — AI analysis will fail.")
+    elif provider == "gemini":
+        if not GEMINI_API_KEY:
+            warnings.append("AI_PROVIDER is 'gemini' but GEMINI_API_KEY is not set — AI analysis will fail.")
+    else:
+        # Auto-detect: warn only if NEITHER key is set
+        if not GEMINI_API_KEY and not OPENAI_API_KEY:
+            warnings.append("No AI API key is set (GEMINI_API_KEY or OPENAI_API_KEY) — AI analysis will fail.")
 
     if not SUPABASE_URL or "YOUR_PROJECT_REF" in SUPABASE_URL:
         warnings.append("SUPABASE_URL is not configured.")

@@ -9,7 +9,7 @@ from models import User, Video, Clip
 from schemas import ClipResponse
 from middleware.auth import get_current_user
 from services.drive_service import GoogleDriveSource
-from services.gemini_analyzer import analyze_transcript
+from services.ai_provider import analyze_transcript
 from services.clipper import clip_video
 from config import DOWNLOADS_DIR
 

@@ -2,11 +2,11 @@
 
 **AI-Powered Viral Video Clipper (Enterprise Architecture)**
 
-Auto Clipper uses Google Gemini 2.5 Flash to semantically analyze long-form video transcripts, identify the most viral moments, and autonomously generate short, shareable clips using zero-copy FFmpeg fast-seek.
+Auto Clipper uses AI (Google Gemini or OpenAI — your choice) to semantically analyze long-form video transcripts, identify the most viral moments, and autonomously generate short, shareable clips using zero-copy FFmpeg fast-seek.
 
 ## 🌟 Key Features
 
-- **Semantic AI Analysis** &mdash; Gemini identifies optimal clip candidates based on emotional resonance, hook potential, and pacing, completely bypassing the need for computationally heavy visual processing.
+- **Semantic AI Analysis** &mdash; Gemini or OpenAI identifies optimal clip candidates based on emotional resonance, hook potential, and pacing, completely bypassing the need for computationally heavy visual processing.
 - **Microsecond Clipping** &mdash; Uses FFmpeg Fast Seek (`-ss` before `-i`) to jump directly to keyframes, extracting clips in milliseconds regardless of source video length.
 - **Supabase Postgres Cluster** &mdash; Highly available data storage with connection pooling (`pool_pre_ping`) to handle concurrent asynchronous clipping jobs.
 - **Role-Based Access Control (RBAC)** &mdash; JWT-secured admin and sub-user hierarchies. Users are invited/managed exclusively by administrators via the dashboard.
@@ -23,7 +23,8 @@ Auto Clipper uses Google Gemini 2.5 Flash to semantically analyze long-form vide
    cd backend
    pip install -r requirements.txt
    
-   # Duplicate .env.example to .env and add your Supabase credentials
+   # Duplicate .env.example to .env and add your API keys
+   # Supports Gemini, OpenAI, or both (auto-detects from whichever key you provide)
    
    # Seed your initial Admin account
    python seed_admin.py admin@yourdomain.com your_secure_password "Admin Name"
@@ -45,12 +46,16 @@ Auto Clipper uses Google Gemini 2.5 Flash to semantically analyze long-form vide
 
 To deploy the entire stack (Backend, Frontend, and secure Cloudflare Tunnel) with one command, use the included Docker Compose configuration.
 
-1. **Configure Storage:** Follow the instructions inside `docker-compose.yml` to give Docker Desktop File Sharing permissions for your raw video folder on Windows (e.g. `D:\Auto_Clipper\vids`).
+1. **Configure:** Create `backend/.env` from `.env.example` (Supabase + at least one AI key required). Follow the instructions inside `docker-compose.yml` to give Docker Desktop File Sharing permissions for your raw video folder on Windows (e.g. `D:\Auto_Clipper\vids`).
 2. **Start the Stack:**
    ```bash
    docker-compose up -d --build
    ```
-3. **Get your Public URL:**
+3. **Seed Admin:**
+   ```bash
+   docker exec -it autoclipper_backend python seed_admin.py admin@yourdomain.com your_password "Admin Name"
+   ```
+4. **Get your Public URL:**
    ```bash
    docker logs autoclipper_tunnel | findstr trycloudflare
    ```
@@ -62,7 +67,7 @@ To deploy the entire stack (Backend, Frontend, and secure Cloudflare Tunnel) wit
 |-------|-----------|
 | **Core Architecture** | Asynchronous Python 3.10+, FastAPI |
 | **Data Persistence** | Supabase (PostgreSQL), SQLAlchemy ORM |
-| **AI Inference** | Google Gemini 2.5 Flash (Semantic Analysis) |
+| **AI Inference** | Google Gemini / OpenAI (configurable via `AI_PROVIDER`) |
 | **Media Processing** | FFmpeg (Zero-copy clipping), `faster-whisper` (CTranslate2) |
 | **Frontend Runtime** | React 18, Vite, Framer Motion (Transitions) |
 | **Analytics Engine** | Recharts (SVG hardware-accelerated rendering) |
